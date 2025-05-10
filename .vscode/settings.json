@@ -1,0 +1,10 @@
+{
+  "C_Cpp.default.compileCommands": "${workspaceFolder}/build/compile_commands.json",
+  "files.associations": {
+    "*.embeddedhtml": "html",
+    "iostream": "cpp",
+    "defines.h": "c",
+    "logger.h": "c"
+  },
+  "cmake.buildDirectory": "${workspaceFolder}/build"
+}
