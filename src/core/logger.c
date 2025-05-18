@@ -6,6 +6,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+/* Implement report assert here */
+#include "assert.h"
+
+void report_assertion_failure(const char* expr, const char* msg,
+                              const char* file, i32 line) {
+    log_output(LOG_LEVEL_FATAL,
+               "Assertion Failure: %s, message: %s, in file: %s, in line: %d\n",
+               expr, msg, file, line);
+}
+
 b8 init_log() {
     // TODO: create a log file
     return TRUE;
@@ -15,7 +25,7 @@ void shutdown_log() {
     // TODO: cleanup logging/write queued entries
 }
 
-API void log_output(log_level level, const char* msg, ...) {
+void log_output(log_level_t level, const char* msg, ...) {
     const char* levels[6] = {"[FATAL]:", "[ERROR]:", "[WARNING]:",
                              "[INFO]:",  "[DEBUG]:", "[TRACE]:"};
     b8 is_error = level < 2;

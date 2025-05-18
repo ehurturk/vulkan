@@ -1,6 +1,9 @@
-file(GLOB_RECURSE PLAYGROUND_SRC CONFIGURE_DEPENDS *.c)
-message(STATUS "Found ${PLAYGROUND_SRC}")
-add_executable(VulkanApp ${PLAYGROUND_SRC})
-target_link_libraries(VulkanApp PRIVATE engine)
+# Create executable
+add_executable(VulkanApp ${PLAYGROUND_SOURCES})
 
-target_include_directories(VulkanApp PRIVATE ${CMAKE_SOURCE_DIR}/src)
+target_sources(VulkanApp
+    PRIVATE
+        main.c)
+
+# Link with engine library
+target_link_libraries(VulkanApp PRIVATE engine)

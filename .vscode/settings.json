@@ -4,7 +4,9 @@
     "*.embeddedhtml": "html",
     "iostream": "cpp",
     "defines.h": "c",
-    "logger.h": "c"
+    "logger.h": "c",
+    "platform.h": "c",
+    "window.h": "c"
   },
   "cmake.buildDirectory": "${workspaceFolder}/build"
 }
