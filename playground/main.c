@@ -4,16 +4,18 @@
 #include <platform/window.h>
 
 // NOTE: This file is a playground that tests the engine library functionality.
-
 int main() {
-  WARN("Hello there!");
-  FATAL("Oopps!");
-  ASSERT(10 < 2);
+    LOG_WARN("Hello there!");
+    LOG_FATAL("Oopps!");
+    ASSERT(10 < 2);
 
-  window_t *win = window_init(600, 800, "Test Vulkan", FALSE);
-  while (win->running) {
-    window_poll_events();
-  }
+    platform_state_t pstate;
+    if (platform_startup(&pstate, "Test", 600, 800)) {
+        platform_window_create(&pstate);
+        while (!platform_should_run(&pstate)) {
+            platform_dispatch_messages(&pstate);
+        }
+    }
 
-  window_shutdown(win);
+    platform_shutdown(&pstate);
 }

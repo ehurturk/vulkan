@@ -10,10 +10,14 @@ target_sources(engine
     PRIVATE
         # Core files
         core/logger.c
-        engine.c
+        core/application.c
         
         # Platform files
         platform/platform.c
+        platform/platform_linux.c
+        platform/platform_win32.c
+        platform/platform_macos.c
+        platform/platform_glfw.c
         platform/window.c
         
         # Add other source files as your project grows
@@ -24,9 +28,10 @@ target_sources(engine
 set(ENGINE_HEADERS
     # Core headers
     core/assert.h
+    core/cc.h
     core/logger.h
+    core/application.h
     defines.h
-    engine.h
     
     # Platform headers
     platform/platform.h

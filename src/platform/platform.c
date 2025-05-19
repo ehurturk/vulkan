@@ -2,7 +2,7 @@
 
 #include <memory.h>
 #include <stdlib.h>
-
+/*
 b8 platform_startup(platform_state_t* state, const char* name, i32 width,
                     i32 height) {}
 
@@ -27,3 +27,4 @@ void* platform_copy_memory(void* dest, const void* source, u64 size) {
 void* platform_set_memory(void* dest, i32 value, u64 size) {
     return memset(dest, value, size);
 }
+*/

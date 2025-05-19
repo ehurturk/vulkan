@@ -22,35 +22,41 @@ void shutdown_log();
 API void log_output(log_level_t level, const char* msg, ...);
 
 #ifndef FATAL
-#define FATAL(message, ...) log_output(LOG_LEVEL_FATAL, message, ##__VA_ARGS__);
+#define LOG_FATAL(message, ...) \
+    log_output(LOG_LEVEL_FATAL, message, ##__VA_ARGS__);
 #endif
 
 #ifndef ERROR
-#define ERROR(message, ...) log_output(LOG_LEVEL_ERROR, message, ##__VA_ARGS__);
+#define LOG_ERROR(message, ...) \
+    log_output(LOG_LEVEL_ERROR, message, ##__VA_ARGS__);
 #endif
 
 #if LOG_WARN_ENABLED == 1
-#define WARN(message, ...) log_output(LOG_LEVEL_WARN, message, ##__VA_ARGS__);
+#define LOG_WARN(message, ...) \
+    log_output(LOG_LEVEL_WARN, message, ##__VA_ARGS__);
 #else
-#define WARN(message, ...)
+#define LOG_WARN(message, ...)
 #endif
 
 #if LOG_INFO_ENABLED == 1
-#define INFO(message, ...) log_output(LOG_LEVEL_INFO, message, ##__VA_ARGS__);
+#define LOG_INFO(message, ...) \
+    log_output(LOG_LEVEL_INFO, message, ##__VA_ARGS__);
 #else
-#define INFO(message, ...)
+#define LOG_INFO(message, ...)
 #endif
 
 #if LOG_DEBUG_ENABLED == 1
-#define DEBUG(message, ...) log_output(LOG_LEVEL_DEBUG, message, ##__VA_ARGS__);
+#define LOG_DEBUG(message, ...) \
+    log_output(LOG_LEVEL_DEBUG, message, ##__VA_ARGS__);
 #else
-#define DEBUG(message, ...)
+#define LOG_DEBUG(message, ...)
 #endif
 
 #if LOG_TRACE_ENABLED == 1
-#define TRACE(message, ...) log_output(LOG_LEVEL_TRACE, message, ##__VA_ARGS__);
+#define LOG_TRACE(message, ...) \
+    log_output(LOG_LEVEL_TRACE, message, ##__VA_ARGS__);
 #else
-#define TRACE(message, ...)
+#define LOG_TRACE(message, ...)
 #endif
 
 #endif

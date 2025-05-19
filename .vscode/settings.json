@@ -6,7 +6,8 @@
     "defines.h": "c",
     "logger.h": "c",
     "platform.h": "c",
-    "window.h": "c"
+    "window.h": "c",
+    "locale": "c"
   },
   "cmake.buildDirectory": "${workspaceFolder}/build"
 }
