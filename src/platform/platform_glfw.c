@@ -1,4 +1,5 @@
 #include <memory.h>
+#include <stdio.h>
 #include <stdlib.h>
 
 #include "core/logger.h"
@@ -64,6 +65,10 @@ void platform_shutdown(platform_state_t* state) {
 b8 platform_dispatch_messages(platform_state_t* state) {
     window_poll_events();
     return TRUE;
+}
+
+void platform_console_write(const char* msg, const char* color) {
+    printf("%s%s%s\n", color, msg, FORMAT_RESET);
 }
 
 /* TODO: Implement a custom (double) stack allocator that prevents fragmentation */

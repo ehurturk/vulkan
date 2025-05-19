@@ -8,11 +8,13 @@
 
 /* Implement report assert here */
 #include "assert.h"
+#include "platform/platform.h"
 
-void report_assertion_failure(const char* expr, const char* msg,
-                              const char* file, i32 line) {
-    log_output(LOG_LEVEL_FATAL,
-               "Assertion Failure: %s, message: %s, in file: %s, in line: %d\n",
+static const char* log_level_colors[] = {COLOR_FATAL, COLOR_ERROR, COLOR_WARN,
+                                         COLOR_INFO,  COLOR_DEBUG, COLOR_TRACE};
+
+void report_assertion_failure(const char* expr, const char* msg, const char* file, i32 line) {
+    log_output(LOG_LEVEL_FATAL, "Assertion Failure: %s, message: %s, in file: %s, in line: %d",
                expr, msg, file, line);
 }
 
@@ -26,8 +28,8 @@ void shutdown_log() {
 }
 
 void log_output(log_level_t level, const char* msg, ...) {
-    const char* levels[6] = {"[FATAL]:", "[ERROR]:", "[WARNING]:",
-                             "[INFO]:",  "[DEBUG]:", "[TRACE]:"};
+    const char* levels[6] = {
+        "[FATAL]:", "[ERROR]:", "[WARNING]:", "[INFO]:", "[DEBUG]:", "[TRACE]:"};
     b8 is_error = level < 2;
 
     /* 32k char limit on a single log entry */
@@ -41,8 +43,7 @@ void log_output(log_level_t level, const char* msg, ...) {
 
     char out_msg_p[32000];
 
-    sprintf(out_msg_p, "%s%s\n", levels[level], out_msg);
+    sprintf(out_msg_p, "%s%s", levels[level], out_msg);
 
-    // TODO: Platform specific output
-    printf("%s", out_msg_p);
+    platform_console_write(out_msg_p, log_level_colors[(int)level]);
 }

@@ -12,6 +12,8 @@ API b8 platform_window_create(platform_state_t* state);
 API void platform_shutdown(platform_state_t* state);
 API b8 platform_dispatch_messages(platform_state_t* state);
 
+void platform_console_write(const char* msg, const char* colour);
+
 void* platform_allocate(u64 size, b8 aligned);
 void platform_free(void* block, b8 aligned);
 void* platform_zero_memory(void* block, u64 size);
