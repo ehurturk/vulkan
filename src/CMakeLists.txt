@@ -11,6 +11,7 @@ target_sources(engine
         # Core files
         core/logger.c
         core/application.c
+        core/memory/destack_allocator.c
         
         # Platform files
         platform/platform.c
@@ -31,7 +32,10 @@ set(ENGINE_HEADERS
     core/cc.h
     core/logger.h
     core/application.h
+    core/memory/destack_allocator.h
     defines.h
+
+    types/game_types.h
     
     # Platform headers
     platform/platform.h

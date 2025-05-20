@@ -4,10 +4,8 @@
             "compileCommands": "${workspaceFolder}/build/compile_commands.json",
             "name": "Mac",
             "includePath": [
-                "${workspaceFolder}/**",
                 "${workspaceFolder}/src/**",
-                "${workspaceFolder}/playground/**",
-                "/usr/local/lib/"
+                "${workspaceFolder}/playground/**"
             ],
             "defines": [],
             "macFrameworkPath": [

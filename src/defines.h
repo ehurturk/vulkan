@@ -58,7 +58,7 @@ typedef char b8; /* 8 bit bool */
 #define COLOR_WARN COLOR_BOLD_YELLOW        /* Bright yellow */
 #define COLOR_INFO COLOR_BOLD_GREEN         /* Bright green */
 #define COLOR_DEBUG COLOR_BOLD_CYAN         /* Bright cyan */
-#define COLOR_TRACE COLOR_BOLD_BLUE         /* Bright blue */
+#define COLOR_TRACE COLOR_BOLD_BLACK        /* Bright blue */
 
 #define COLOR_SUCCESS COLOR_BOLD_GREEN     /* Success messages */
 #define COLOR_HIGHLIGHT COLOR_BOLD_MAGENTA /* Highlighting important info */

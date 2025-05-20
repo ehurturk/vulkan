@@ -1,10 +1,17 @@
 #include <memory.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/time.h>
 
 #include "core/logger.h"
 #include "platform.h"
 #include "window.h"
+
+#if _POSIX_C_SOURCE >= 199309L
+#include <time.h>
+#else
+#include <unistd.h>
+#endif
 
 /*
  * A note on this design:
@@ -33,18 +40,13 @@ b8 platform_startup(platform_state_t* state, const char* name, i32 width, i32 he
         return FALSE;
     }
 
-    istate->initialized = TRUE;
-    istate->window = win;
-    return TRUE;
-}
-
-b8 platform_window_create(platform_state_t* state) {
-    window_t* win = ((internal_state_t*)state->internal_state)->window;
     if (!window_create(win)) {
-        LOG_FATAL("Couldn't create window.");
+        LOG_FATAL("Failed to create window!");
         return FALSE;
     }
 
+    istate->initialized = TRUE;
+    istate->window = win;
     return TRUE;
 }
 
@@ -69,6 +71,23 @@ b8 platform_dispatch_messages(platform_state_t* state) {
 
 void platform_console_write(const char* msg, const char* color) {
     printf("%s%s%s\n", color, msg, FORMAT_RESET);
+}
+
+f64 platform_get_abs_time() { return glfwGetTime(); }
+
+void platform_sleep(u64 ms) {
+/* TODO: Do it the native OS-specific way (currently doing Linux specific) */
+#if _POSIX_C_SOURCE >= 199309L
+    struct timespec ts;
+    ts.tv_sec = ms / 1000;
+    ts.tv_nsec = (ms % 1000) * 1000 * 1000;
+    nanosleep(&ts, NULL);
+#else
+    if (ms >= 1000) {
+        sleep(ms / 1000);
+    }
+    usleep((ms % 1000) * 1000);
+#endif
 }
 
 /* TODO: Implement a custom (double) stack allocator that prevents fragmentation */
