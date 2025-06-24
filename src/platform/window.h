@@ -6,12 +6,12 @@
 #include "defines.h"
 
 typedef struct window {
-    GLFWwindow* handle;
-    i32 height;
-    i32 width;
-    b8 resizable;
-    b8 fullscreen;
-    const char* name;
+    GLFWwindow* handle; /* 8 bytes */
+    i32 height;         /* 4 bytes */
+    i32 width;          /* 4 bytes */
+    b8 resizable;       /* 1 byte */
+    b8 fullscreen;      /* 1 byte */
+    const char* name;   /* 8 bytes */
 } window_t;
 
 window_t* window_init(i32 w, i32 h, const char* name, b8 resizable, b8 fullscreen);

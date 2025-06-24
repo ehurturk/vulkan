@@ -3,3 +3,4 @@ BasedOnStyle: Google
 PointerAlignment: Left
 DerivePointerAlignment: false
 ColumnLimit: 100
+SortIncludes: false

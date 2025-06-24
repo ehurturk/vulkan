@@ -4,7 +4,6 @@
 #include <memory.h>
 #include <stdarg.h>
 #include <stdio.h>
-#include <stdlib.h>
 
 /* Implement report assert here */
 #include "assert.h"
@@ -13,7 +12,7 @@
 static const char* log_level_colors[] = {COLOR_FATAL, COLOR_ERROR, COLOR_WARN,
                                          COLOR_INFO,  COLOR_DEBUG, COLOR_TRACE};
 
-void report_assertion_failure(const char* expr, const char* msg, const char* file, i32 line) {
+void assertion_report_failure(const char* expr, const char* msg, const char* file, i32 line) {
     log_output(LOG_LEVEL_FATAL, "Assertion Failure: %s, message: %s, in file: %s, in line: %d",
                expr, msg, file, line);
 }

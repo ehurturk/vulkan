@@ -3,8 +3,9 @@
 
 #include "defines.h"
 
+/* Size: 8 bytes */
 typedef struct platform_state {
-    void* internal_state;
+    void* internal_state; /* 8 bytes */
 } platform_state_t;
 
 API b8 platform_startup(platform_state_t* state, const char* name, i32 width, i32 height);

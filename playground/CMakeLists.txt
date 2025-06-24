@@ -7,3 +7,4 @@ target_sources(VulkanApp
 
 # Link with engine library
 target_link_libraries(VulkanApp PRIVATE engine)
+

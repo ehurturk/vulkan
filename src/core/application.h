@@ -13,5 +13,6 @@ typedef struct application_config_t {
 
 API b8 application_create(application_config_t* cfg);
 API b8 application_run();
+API b8 application_shutdown();
 
 #endif

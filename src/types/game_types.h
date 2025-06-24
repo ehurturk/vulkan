@@ -1,13 +1,15 @@
 #ifndef GAME_TYPES
 #define GAME_TYPES
 
-#include "defines.h"
+#include "core/application.h"
 
 typedef struct game {
-    void (*init_game)();
-    void (*update_game)(f32 dt);
-    void (*render_game)(f32 dt);
-    void (*shutdown_game)();
+    application_config_t config;
+
+    void (*initialize)();   /* Called on game initialization */
+    void (*update)(f32 dt); /* Called on game update on each frame */
+    void (*render)(f32 dt); /* */
+    void (*shutdown)();
 } game_t;
 
 #endif /* GAME_TYPES */
