@@ -22,7 +22,8 @@ target_sources(engine
         platform/window.c
         
         # Add other source files as your project grows
-        # renderer/...
+        renderer/backend/renderer_gl.c
+        renderer/backend/renderer_vk.c
         # resource/...
 )
 
@@ -42,7 +43,8 @@ set(ENGINE_HEADERS
     platform/window.h
     
     # Add other header files as your project grows
-    # renderer/...
+    renderer/backend/renderer.h
+
     # resource/...
 )
 
