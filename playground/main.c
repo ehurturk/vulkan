@@ -14,6 +14,7 @@ int main() {
     LOG_INFO("Info!");
     LOG_DEBUG("Debug!");
     LOG_TRACE("Trace!");
+
     ASSERT(10 > 2);
 
     game_t game;
