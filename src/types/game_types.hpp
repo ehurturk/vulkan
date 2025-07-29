@@ -1,7 +1,7 @@
 #ifndef GAME_TYPES
 #define GAME_TYPES
 
-#include "core/application.h"
+#include "core/application.hpp"
 
 typedef struct game {
     application_config_t config;

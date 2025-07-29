@@ -1,10 +1,10 @@
-#include "destack_allocator.h"
+#include "destack_allocator.hpp"
 
 #include <memory.h>
 #include <stdlib.h>
 
 destack_allocator_t* destack_init() {
-    destack_allocator_t* ds = malloc(sizeof(destack_allocator_t));
+    destack_allocator_t* ds = (destack_allocator_t* ) malloc(sizeof(destack_allocator_t));
     ds->start = NULL;
     ds->end = NULL;
 }

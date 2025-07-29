@@ -1,7 +1,8 @@
 #ifndef ASSERT_H_
 #define ASSERT_H_
 
-#include "defines.h"
+#include "defines.hpp"
+#include <string_view>
 #define ASSERTIONS_ENABLED
 
 #ifdef ASSERTIONS_ENABLED
@@ -12,7 +13,7 @@
 #define debugBreak() __building_trap()
 #endif
 
-API void assertion_report_failure(const char* expr, const char* msg, const char* file, i32 line);
+API void assertion_report_failure(std::string_view expr, std::string_view msg, std::string_view file, i32 line);
 
 #define ASSERT_MSG(expr, msg)                                         \
     {                                                                 \

@@ -1,4 +1,4 @@
-#include "platform.h"
+#include "platform.hpp"
 
 #include <memory.h>
 #include <stdlib.h>

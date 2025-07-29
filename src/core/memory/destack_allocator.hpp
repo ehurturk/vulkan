@@ -1,7 +1,7 @@
 #ifndef DESTACK_ALLOCATOR
 #define DESTACK_ALLOCATOR
 
-#include "defines.h"
+#include "defines.hpp"
 
 /*
  * A double ended stack allocator for better memory
