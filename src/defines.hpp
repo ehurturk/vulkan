@@ -60,7 +60,6 @@ namespace Colors {
         inline constexpr std::string_view REVERSE = "\033[7m";
     }
 
-    // Log level colors
     inline constexpr std::string_view FATAL = "\033[1;37m\033[41m";
     inline constexpr std::string_view ERROR = "\033[1;31m";
     inline constexpr std::string_view WARN = "\033[1;33m";

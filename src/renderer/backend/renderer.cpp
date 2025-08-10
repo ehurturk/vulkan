@@ -1,33 +1,36 @@
 #include "renderer.hpp"
-#include "./vulkan/vulkan_renderer.hpp"
-#include "../../core/assert.hpp"
+#include "vulkan/vulkan_renderer.hpp"
+#include "renderer/backend/opengl/opengl_renderer.hpp"
+#include "core/assert.hpp"
+
+#include <memory>
 
 namespace Renderer {
 
-struct Renderer::Impl {
-    std::unique_ptr<VulkanRenderer> vulkanRenderer;
-};
+std::unique_ptr<IRenderer> MakeRenderer(RendererBackendType t) {
+    switch (t) {
+    case RendererBackendType::Vulkan:
+        return std::make_unique<VulkanRenderer>();
+    case RendererBackendType::OpenGL:
+        return std::make_unique<OpenGLRenderer>();
+    default:
+        ASSERT(false);
+    }
+    return {};
+}
 
-Renderer::Renderer() : m_pImpl(std::make_unique<Impl>()) {}
+Renderer::Renderer(const RendererConfig &cfg) : m_Config(cfg), m_Backend(MakeRenderer(cfg.backend)) {}
 
-Renderer::~Renderer() { destroy(); }
+Renderer::~Renderer() { shutdown(); }
 
 void Renderer::initialize() {
-    switch (m_state.backend) {
-    case RendererBackend::Vulkan:
-        m_pImpl->vulkanRenderer = std::make_unique<VulkanRenderer>();
-        m_pImpl->vulkanRenderer->initialize(this);
-        break;
-    case RendererBackend::OpenGL:
-        ASSERT_MSG(false, "OpenGL backend not implemented yet");
-        break;
-    }
+    if (m_Backend)
+        m_Backend->initialize(m_Config);
 }
-
-void Renderer::destroy() {
-    if (m_pImpl) {
-        m_pImpl->vulkanRenderer.reset();
-    }
+void Renderer::shutdown() {
+    if (m_Backend)
+        m_Backend->shutdown();
 }
+RendererBackendType Renderer::backend_type() const noexcept { return m_Config.backend; }
 
 }

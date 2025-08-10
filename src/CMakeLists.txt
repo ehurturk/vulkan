@@ -5,6 +5,8 @@ find_package(glfw3 REQUIRED)
 # Create engine library
 add_library(engine STATIC ${ENGINE_SOURCES})
 
+set(CMAKE_BUILD_TYPE Debug)
+
 
 target_sources(engine
     PRIVATE
@@ -23,6 +25,7 @@ target_sources(engine
         
         # Add other source files as your project grows
         renderer/backend/vulkan/vulkan_renderer.cpp
+        renderer/backend/opengl/opengl_renderer.cpp
         renderer/backend/renderer.cpp
         # resource/...
 )
@@ -44,6 +47,7 @@ set(ENGINE_HEADERS
     # Add other header files as your project grows
     renderer/backend/renderer.hpp
     renderer/backend/vulkan/vulkan_renderer.hpp
+    renderer/backend/opengl/opengl_renderer.hpp
     
     # resource/...
 )
@@ -66,6 +70,13 @@ target_link_libraries(engine
         glfw
 )
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${ENGINE_HEADERS} ${ENGINE_SOURCES})
+
+set (CMAKE_BUILD_TYPE Debug)
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    target_compile_definitions(engine PRIVATE BUILD_DEBUG=1)
+else()
+    target_compile_definitions(engine PRIVATE BUILD_RELEASE=1)
+endif()
 
 # Output some debug info
 message(STATUS "Engine sources: ${ENGINE_SOURCES}")

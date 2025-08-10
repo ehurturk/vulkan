@@ -11,6 +11,7 @@ struct ApplicationConfig {
     i32 width;
     i32 height;
     std::string name;
+    Renderer::RendererBackendType backend;
 };
 
 class Application {

@@ -1,33 +1,30 @@
 #pragma once
-
 #include <vulkan/vulkan.h>
 #include <memory>
-#include <vector>
+
+#include "renderer/backend/renderer.hpp"
 
 namespace Renderer {
 
-class Renderer;
-
-class VulkanRenderer {
+class VulkanRenderer final : public IRenderer {
   public:
     VulkanRenderer();
-    ~VulkanRenderer();
+    ~VulkanRenderer() override;
 
-    void initialize(Renderer *renderer);
-    void destroy();
+    void initialize(const RendererConfig &cfg) override;
+    void shutdown() override;
 
   private:
-    struct InternalState {
+    struct VkState {
         VkInstance instance = VK_NULL_HANDLE;
-        VkApplicationInfo appInfo{};
-        VkInstanceCreateInfo createInfo{};
+        VkDebugUtilsMessengerEXT debugMessenger = VK_NULL_HANDLE;
+        bool validation = false;
     };
 
-    void createInstance();
-    void handleExtensions(std::vector<const char *> &extensions);
+    void create_instance(bool enableValidation);
+    void setup_debug_messenger();
+    void destroy_debug_messenger();
 
-    std::unique_ptr<InternalState> m_state;
-    Renderer *m_renderer = nullptr;
+    std::unique_ptr<VkState> m_vkState;
 };
-
 }

@@ -1,104 +1,129 @@
 #include "vulkan_renderer.hpp"
-#include "../../../core/logger.hpp"
-#include "../../../core/assert.hpp"
+#include "core/logger.hpp"
+#include "core/assert.hpp"
 #include "../renderer.hpp"
+
 #include <GLFW/glfw3.h>
-#include <algorithm>
-#include <cstring>
+
+
+#define VULKAN_CHECK(x)                                                                            \
+    do {                                                                                           \
+        VkResult _r = (x);                                                                         \
+        if (_r != VK_SUCCESS) {                                                                    \
+            LOG_FATAL("Vulkan error: VkResult={}", static_cast<int>(_r));                          \
+            ASSERT(false);                                                                         \
+        }                                                                                          \
+    } while (0)
 
 namespace Renderer {
 
-VulkanRenderer::VulkanRenderer() : m_state(std::make_unique<InternalState>()) {}
-
-VulkanRenderer::~VulkanRenderer() { destroy(); }
-
-void VulkanRenderer::initialize(Renderer *renderer) {
-    ASSERT(renderer != nullptr);
-    m_renderer = renderer;
-    createInstance();
-    ASSERT_MSG(true, "Renderer backend initialization works!");
+static VKAPI_ATTR VkBool32 VKAPI_CALL
+DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT severity, VkDebugUtilsMessageTypeFlagsEXT,
+              const VkDebugUtilsMessengerCallbackDataEXT *data, void *) {
+    if (severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) {
+        LOG_ERROR("[Vulkan] {}", data->pMessage);
+    } else if (severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) {
+        LOG_WARN("[Vulkan] {}", data->pMessage);
+    } else {
+        LOG_INFO("[Vulkan] {}", data->pMessage);
+    }
+    return VK_FALSE;
 }
 
-void VulkanRenderer::destroy() {
-    if (m_state && m_state->instance != VK_NULL_HANDLE) {
-        vkDestroyInstance(m_state->instance, nullptr);
-        m_state->instance = VK_NULL_HANDLE;
+static PFN_vkCreateDebugUtilsMessengerEXT pfnCreateDebugUtilsMessengerEXT = nullptr;
+static PFN_vkDestroyDebugUtilsMessengerEXT pfnDestroyDebugUtilsMessengerEXT = nullptr;
+
+VulkanRenderer::VulkanRenderer() : m_vkState(std::make_unique<VkState>()) {}
+VulkanRenderer::~VulkanRenderer() { shutdown(); }
+
+void VulkanRenderer::initialize(const RendererConfig &cfg) {
+    m_vkState->validation = cfg.enableValidation;
+    create_instance(m_vkState->validation);
+    if (m_vkState->validation)
+        setup_debug_messenger();
+    LOG_INFO("Vulkan instance created.");
+}
+
+void VulkanRenderer::shutdown() {
+    if (!m_vkState)
+        return;
+    if (m_vkState->validation && m_vkState->debugMessenger) {
+        destroy_debug_messenger();
+        m_vkState->debugMessenger = VK_NULL_HANDLE;
+    }
+    if (m_vkState->instance) {
+        vkDestroyInstance(m_vkState->instance, nullptr);
+        m_vkState->instance = VK_NULL_HANDLE;
     }
 }
 
-void VulkanRenderer::handleExtensions(std::vector<const char *> &extensions) {
-    u32 glfwExtensionCount = 0;
-    const char **glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
+void VulkanRenderer::create_instance(bool enableValidation) {
+    VkApplicationInfo appInfo{VK_STRUCTURE_TYPE_APPLICATION_INFO};
+    appInfo.pApplicationName = "CC Engine";
+    appInfo.applicationVersion = VK_MAKE_API_VERSION(1, 0, 0, 0);
+    appInfo.pEngineName = "CC Engine";
+    appInfo.engineVersion = VK_MAKE_API_VERSION(1, 0, 0, 0);
+    appInfo.apiVersion = VK_API_VERSION_1_2;
 
-    extensions.clear();
-    extensions.reserve(glfwExtensionCount + 1);
+    uint32_t glfwCount = 0;
+    const char **glfwExts = glfwGetRequiredInstanceExtensions(&glfwCount);
 
-    for (u32 i = 0; i < glfwExtensionCount; ++i) {
-        extensions.push_back(glfwExtensions[i]);
-    }
+    std::vector<const char *> extensions(glfwExts, glfwExts + glfwCount);
 
 #ifdef PLATFORM_APPLE
     extensions.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
 #endif
 
-    u32 extensionCount = 0;
-    vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr);
-
-    std::vector<VkExtensionProperties> availableExtensions(extensionCount);
-    vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, availableExtensions.data());
-
-    LOG_INFO("{}Available extensions:", Colors::YELLOW);
-    for (const auto &ext : availableExtensions) {
-        LOG_INFO("\t{}{}", Colors::YELLOW, ext.extensionName);
+    if (enableValidation) {
+        extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
     }
 
-    for (const auto *requiredExt : extensions) {
-        auto it = std::find_if(availableExtensions.begin(), availableExtensions.end(),
-                               [requiredExt](const VkExtensionProperties &ext) {
-                                   return std::strcmp(ext.extensionName, requiredExt) == 0;
-                               });
-
-        if (it == availableExtensions.end()) {
-            LOG_FATAL("GLFW Extension {} is not supported!", requiredExt);
-            ASSERT(false);
-        }
+    const char *kValidationLayer = "VK_LAYER_KHRONOS_validation";
+    std::vector<const char *> layers;
+    if (enableValidation) {
+        // In production you’d enumerate and verify presence.
+        layers.push_back(kValidationLayer);
     }
 
-    LOG_INFO("All GLFW extensions are supported!");
-}
-
-void VulkanRenderer::createInstance() {
-    ASSERT(m_renderer != nullptr);
-    ASSERT(m_state != nullptr);
-
-    m_state->appInfo = {.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
-                        .pNext = nullptr,
-                        .pApplicationName = "Hello Vulkan",
-                        .applicationVersion = VK_MAKE_API_VERSION(1, 0, 0, 0),
-                        .pEngineName = "CC Engine",
-                        .engineVersion = VK_MAKE_API_VERSION(1, 0, 0, 0),
-                        .apiVersion = VK_API_VERSION_1_0};
-
-    std::vector<const char *> extensions;
-    handleExtensions(extensions);
-
-    m_state->createInfo = {.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
-                           .pNext = nullptr,
-                           .flags = 0,
-                           .pApplicationInfo = &m_state->appInfo,
-                           .enabledLayerCount = 0,
-                           .ppEnabledLayerNames = nullptr,
-                           .enabledExtensionCount = static_cast<u32>(extensions.size()),
-                           .ppEnabledExtensionNames = extensions.data()};
+    VkInstanceCreateInfo ci{VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO};
+    ci.pApplicationInfo = &appInfo;
+    ci.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
+    ci.ppEnabledExtensionNames = extensions.data();
+    ci.enabledLayerCount = static_cast<uint32_t>(layers.size());
+    ci.ppEnabledLayerNames = layers.data();
 
 #ifdef PLATFORM_APPLE
-    m_state->createInfo.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
+    ci.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
 #endif
 
-    VkResult result = vkCreateInstance(&m_state->createInfo, nullptr, &m_state->instance);
-    if (result != VK_SUCCESS) {
-        LOG_FATAL("VkResult is: {}", static_cast<i32>(result));
-        ASSERT_MSG(false, "Failed to create VK Instance");
+    VULKAN_CHECK(vkCreateInstance(&ci, nullptr, &m_vkState->instance));
+
+    if (enableValidation) {
+        pfnCreateDebugUtilsMessengerEXT = reinterpret_cast<PFN_vkCreateDebugUtilsMessengerEXT>(
+            vkGetInstanceProcAddr(m_vkState->instance, "vkCreateDebugUtilsMessengerEXT"));
+        pfnDestroyDebugUtilsMessengerEXT = reinterpret_cast<PFN_vkDestroyDebugUtilsMessengerEXT>(
+            vkGetInstanceProcAddr(m_vkState->instance, "vkDestroyDebugUtilsMessengerEXT"));
+    }
+}
+
+void VulkanRenderer::setup_debug_messenger() {
+    if (!pfnCreateDebugUtilsMessengerEXT)
+        return;
+
+    VkDebugUtilsMessengerCreateInfoEXT dbg{VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT};
+    dbg.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
+                          VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+    dbg.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
+                      VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
+                      VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+    dbg.pfnUserCallback = DebugCallback;
+
+    VULKAN_CHECK(pfnCreateDebugUtilsMessengerEXT(m_vkState->instance, &dbg, nullptr, &m_vkState->debugMessenger));
+}
+
+void VulkanRenderer::destroy_debug_messenger() {
+    if (pfnDestroyDebugUtilsMessengerEXT && m_vkState->debugMessenger) {
+        pfnDestroyDebugUtilsMessengerEXT(m_vkState->instance, m_vkState->debugMessenger, nullptr);
     }
 }
 

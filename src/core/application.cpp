@@ -34,7 +34,14 @@ b8 Application::create(const ApplicationConfig &config) {
         return false;
     }
 
-    m_pImpl->renderer = std::make_unique<Renderer::Renderer>();
+#if BUILD_DEBUG
+    m_pImpl->renderer = std::make_unique<Renderer::Renderer>(
+        (Renderer::RendererConfig){.backend = config.backend, .enableValidation = true});
+#elif BUILD_RELEASE
+    m_pImpl->renderer = std::make_unique<Renderer::Renderer>(
+        (Renderer::RendererConfig){.backend = config.backend, .enableValidation = false});
+#endif
+
     m_pImpl->renderer->initialize();
     m_pImpl->initialized = true;
 
@@ -72,7 +79,7 @@ void Application::shutdown() {
             m_pImpl->running = false;
         }
         if (m_pImpl->renderer) {
-            m_pImpl->renderer->destroy();
+            m_pImpl->renderer->shutdown();
             m_pImpl->renderer.reset();
         }
 

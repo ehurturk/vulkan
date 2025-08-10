@@ -45,6 +45,7 @@ class Logger {
 };
 
 // Logging macros
+#ifdef BUILD_DEBUG
 #define LOG_FATAL(format, ...)                                                                     \
     ::Core::Logger::getInstance().log(::Core::LogLevel::Fatal, format, ##__VA_ARGS__)
 #define LOG_ERROR(format, ...)                                                                     \
@@ -78,4 +79,12 @@ class Logger {
 #define LOG_TRACE(format, ...) ((void)0)
 #endif
 
+#elif BUILD_RELEASE
+#define LOG_FATAL(format, ...) ((void)0)
+#define LOG_ERROR(format, ...) ((void)0)
+#define LOG_WARN(format, ...) ((void)0)
+#define LOG_INFO(format, ...) ((void)0)
+#define LOG_DEBUG(format, ...) ((void)0)
+#define LOG_TRACE(format, ...) ((void)0)
+#endif
 }

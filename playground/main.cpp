@@ -4,11 +4,10 @@
 int main() {
     Core::Logger::getInstance().initialize();
 
-    Core::ApplicationConfig config{.width = 1280, .height = 720, .name = "Vulkan Test"};
-
+    Core::ApplicationConfig cfg{.width = 1280, .height = 720, .name = "Vulkan Test"};
     Core::Application &app = Core::Application::getInstance();
 
-    if (!app.create(config)) {
+    if (!app.create(cfg)) {
         LOG_FATAL("Failed to create application");
         return -1;
     }
