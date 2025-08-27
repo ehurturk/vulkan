@@ -6,6 +6,8 @@
 
 namespace Core {
 
+
+// Core application implementation
 struct Application::Impl {
     Platform::Platform::State platformState;
     ApplicationConfig config;

@@ -4,7 +4,7 @@
 
 namespace Renderer {
 
-class OpenGLRenderer final : public IRenderer {
+class OpenGLRenderer final : public IRendererBackend {
     public:
         OpenGLRenderer();
         ~OpenGLRenderer() override;

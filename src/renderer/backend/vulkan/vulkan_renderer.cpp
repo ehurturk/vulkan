@@ -5,7 +5,6 @@
 
 #include <GLFW/glfw3.h>
 
-
 #define VULKAN_CHECK(x)                                                                            \
     do {                                                                                           \
         VkResult _r = (x);                                                                         \
@@ -107,8 +106,9 @@ void VulkanRenderer::create_instance(bool enableValidation) {
 }
 
 void VulkanRenderer::setup_debug_messenger() {
-    if (!pfnCreateDebugUtilsMessengerEXT)
+    if (!pfnCreateDebugUtilsMessengerEXT) {
         return;
+    }
 
     VkDebugUtilsMessengerCreateInfoEXT dbg{VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT};
     dbg.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
@@ -118,7 +118,8 @@ void VulkanRenderer::setup_debug_messenger() {
                       VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
     dbg.pfnUserCallback = DebugCallback;
 
-    VULKAN_CHECK(pfnCreateDebugUtilsMessengerEXT(m_vkState->instance, &dbg, nullptr, &m_vkState->debugMessenger));
+    VULKAN_CHECK(pfnCreateDebugUtilsMessengerEXT(m_vkState->instance, &dbg, nullptr,
+                                                 &m_vkState->debugMessenger));
 }
 
 void VulkanRenderer::destroy_debug_messenger() {
@@ -127,4 +128,4 @@ void VulkanRenderer::destroy_debug_messenger() {
     }
 }
 
-}
+} // namespace Renderer

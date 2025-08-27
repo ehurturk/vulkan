@@ -7,7 +7,7 @@
 
 namespace Renderer {
 
-std::unique_ptr<IRenderer> MakeRenderer(RendererBackendType t) {
+std::unique_ptr<IRendererBackend> MakeRenderer(RendererBackendType t) {
     switch (t) {
     case RendererBackendType::Vulkan:
         return std::make_unique<VulkanRenderer>();

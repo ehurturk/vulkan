@@ -6,7 +6,7 @@
 
 namespace Renderer {
 
-class VulkanRenderer final : public IRenderer {
+class VulkanRenderer final : public IRendererBackend {
   public:
     VulkanRenderer();
     ~VulkanRenderer() override;
