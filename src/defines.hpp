@@ -1,7 +1,6 @@
 #ifndef DEFINES_H_
 #define DEFINES_H_
 
-#include <cstdint>
 #include <string_view>
 
 using uint = unsigned int;

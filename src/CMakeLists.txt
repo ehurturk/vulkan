@@ -5,9 +5,6 @@ find_package(glfw3 REQUIRED)
 # Create engine library
 add_library(engine STATIC ${ENGINE_SOURCES})
 
-set(CMAKE_BUILD_TYPE Debug)
-
-
 target_sources(engine
     PRIVATE
         # Core files
@@ -70,11 +67,10 @@ target_link_libraries(engine
         glfw
 )
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${ENGINE_HEADERS} ${ENGINE_SOURCES})
-
-set (CMAKE_BUILD_TYPE Debug)
+message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
     target_compile_definitions(engine PRIVATE BUILD_DEBUG=1)
-else()
+elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
     target_compile_definitions(engine PRIVATE BUILD_RELEASE=1)
 endif()
 
