@@ -1,18 +1,21 @@
 # Crucial Todo
+
 - src/CmakeLists.txt: make glfw and vulkan exposure PRIVATE (testbed should be independent of them)
 
 # Long term todo
+
 - FFT Ocean simulation using tesellation shaders
 - Rayleigh + Mie atmospheric scattering
 - Octree-based terrain LOD system
 - Physics integration
 
-
 # App Design
+
 - Engine is exported as a library
 - Playground / Apps use the engine as a library
 
 Example functionality:
+
 ```c
 #include <engine.h>
 
@@ -59,3 +62,16 @@ void shutdown() {
 
 
 ```
+
+## TODO
+
+1) Cmake:
+
+- [ ] Resolve the DEBUG/RELEASE issue
+- [ ] Debug/Release type for both playground & src cmake?
+
+2) Allocators:
+
+- [ ] Is `MemoryAllocator` a singleton?
+- [ ] What about `StackAllocator` top -> is it a `u32` or `uintptr_t`?
+
