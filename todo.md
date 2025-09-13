@@ -74,4 +74,5 @@ void shutdown() {
 
 - [ ] Is `MemoryAllocator` a singleton?
 - [ ] What about `StackAllocator` top -> is it a `u32` or `uintptr_t`?
-
+- [ ] DestackAllocator: tests failing + fix top/bottom issue
+- [ ] GoogleTest nvim plugin?

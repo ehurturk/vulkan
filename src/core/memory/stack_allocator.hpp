@@ -13,7 +13,7 @@ class StackAllocator {
     explicit StackAllocator(u32 stackSize);
     ~StackAllocator();
 
-    void *alloc(u32 size, u32 alignment = 16);
+    void *alloc(u32 size, MemoryTag tag, u32 alignment = 16);
 
     Marker getMarker() const;
 

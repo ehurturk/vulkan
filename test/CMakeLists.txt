@@ -7,15 +7,15 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(googletest)
 
 add_executable(run_tests
-    # Add your test source files here
     engine_tests.cpp
-    memory/memory_tests.cpp
+    memory/stackalloc_tests.cpp
+    memory/destackalloc_tests.cpp
 )
 
 target_link_libraries(run_tests
     PRIVATE
-        GTest::gtest_main  # Provides a main() function and links gtest
-        engine             # Your engine library
+        GTest::gtest_main
+        engine
 )
 
 include(GoogleTest)

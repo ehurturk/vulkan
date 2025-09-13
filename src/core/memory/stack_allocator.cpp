@@ -1,7 +1,8 @@
 #include "stack_allocator.hpp"
 #include "core/assert.hpp"
 #include "core/logger.hpp"
-#include "core/memory/align_utils.hpp"
+#include "align_utils.hpp"
+#include "memory.hpp"
 #include <cstdlib>
 
 namespace Core {
@@ -10,12 +11,13 @@ StackAllocator::StackAllocator(u32 stackSize)
     : m_Size(stackSize), m_Top(0), m_Buffer(static_cast<u8 *>(malloc(stackSize))) {}
 
 StackAllocator::~StackAllocator() {
+    clear();
     if (m_Buffer != nullptr)
         free(m_Buffer);
 }
 
-void *StackAllocator::alloc(u32 size, u32 alignment) {
-    // TODO: alignment
+void *StackAllocator::alloc(u32 size, MemoryTag tag, u32 alignment) {
+    LOG_INFO("[StackAllocator]:Allocating {} bytes for tag: {}", size, memoryTagToString(tag));
     u32 topAligned = Align::alignAddress(m_Top, alignment);
     if (topAligned + size > m_Size) {
         LOG_ERROR("[StackAllocator]:Size is full");
