@@ -1,13 +1,13 @@
 {
-  "C_Cpp.default.compileCommands": "${workspaceFolder}/build/compile_commands.json",
-  "files.associations": {
-    "*.embeddedhtml": "html",
-    "iostream": "cpp",
-    "defines.h": "c",
-    "logger.h": "c",
-    "platform.h": "c",
-    "window.h": "c",
-    "locale": "c"
-  },
-  "cmake.buildDirectory": "${workspaceFolder}/build"
+    "C_Cpp.default.compileCommands": "${workspaceFolder}/cmake-build-debug/compile_commands.json",
+    "files.associations": {
+        "*.embeddedhtml": "html",
+        "iostream": "cpp",
+        "defines.h": "c",
+        "logger.h": "c",
+        "platform.h": "c",
+        "window.h": "c",
+        "locale": "c"
+    },
+    "cmake.buildDirectory": "${workspaceFolder}/cmake-build-debug"
 }

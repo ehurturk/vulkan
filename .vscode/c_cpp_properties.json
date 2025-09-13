@@ -1,7 +1,7 @@
 {
     "configurations": [
         {
-            "compileCommands": "${workspaceFolder}/build/compile_commands.json",
+            "compileCommands": "${workspaceFolder}/cmake-build-debug/compile_commands.json",
             "name": "Mac",
             "includePath": [
                 "${workspaceFolder}/src/**",
@@ -12,7 +12,7 @@
                 "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/System/Library/Frameworks"
             ],
             "cStandard": "c99",
-            "cppStandard": "c++17",
+            "cppStandard": "c++20",
             "intelliSenseMode": "macos-clang-arm64"
         }
     ],
