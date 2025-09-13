@@ -5,17 +5,16 @@
 #include <memory>
 
 namespace Core {
+Application::Application():
+#ifdef BUILD_DEBUG
+    m_Renderer(std::make_unique<Renderer::Renderer>((Renderer::RendererConfig){.backend = Renderer::RendererBackendType::Vulkan, .enableValidation = true})),
+#elif BUILD_RELEASE
+    m_Renderer(std::make_unique<Renderer::Renderer>((Renderer::RendererConfig){.backend = Renderer::RendererBackendType::Vulkan, .enableValidation = false})),
+#endif
+    m_AppCfg({}), m_PlatformState({})
+{
 
-
-// Core application implementation
-struct Application::Impl {
-    Platform::Platform::State platformState;
-    ApplicationConfig config;
-    std::unique_ptr<Renderer::Renderer> renderer;
-    b8 running = false;
-    b8 suspended = false;
-    b8 initialized = false;
-};
+}
 
 Application &Application::getInstance() {
     static Application instance;
@@ -23,71 +22,65 @@ Application &Application::getInstance() {
 }
 
 b8 Application::create(const ApplicationConfig &config) {
-    if (m_pImpl) {
+    if (m_Spec.initialized) {
         LOG_ERROR("Application is already initialized. Can't create more than one application.");
         return false;
     }
 
-    m_pImpl = std::make_unique<Impl>();
-    m_pImpl->config = config;
+    m_AppCfg = config;
 
-    if (!Platform::Platform::startup(m_pImpl->platformState, config.name, config.width, config.height)) {
+    if (!Platform::Platform::startup(m_PlatformState, config.name, config.width, config.height)) {
         LOG_FATAL("Failed to start platform");
         return false;
     }
 
-#if BUILD_DEBUG
-    m_pImpl->renderer = std::make_unique<Renderer::Renderer>(
-        (Renderer::RendererConfig){.backend = config.backend, .enableValidation = true});
-#elif BUILD_RELEASE
-    m_pImpl->renderer = std::make_unique<Renderer::Renderer>(
-        (Renderer::RendererConfig){.backend = config.backend, .enableValidation = false});
-#endif
+    m_Renderer->initialize();
+    m_Spec.initialized = true;
 
-    m_pImpl->renderer->initialize();
-    m_pImpl->initialized = true;
+    // TODO: Set renderer backend type here instead of ctor
 
     return true;
 }
 
 b8 Application::run() {
-    if (!m_pImpl || !m_pImpl->initialized) {
+    if (!m_Spec.initialized) {
         LOG_ERROR("Application not initialized");
         return false;
     }
 
-    m_pImpl->running = true;
+    m_Spec.running = true;
 
-    while (Platform::Platform::shouldRun(m_pImpl->platformState)) {
-        Platform::Platform::dispatchMessages(m_pImpl->platformState);
+    while (Platform::Platform::shouldRun(m_PlatformState)) {
+        Platform::Platform::dispatchMessages(m_PlatformState);
         // TODO: update
         // TODO: render
         // TODO: swap front & back buffers
     }
 
-    m_pImpl->running = false;
-    Platform::Platform::shutdown(m_pImpl->platformState);
+    m_Spec.running = false;
+    Platform::Platform::shutdown(m_PlatformState);
 
     return true;
 }
 
 Renderer::Renderer *Application::getRenderer() const {
-    return m_pImpl ? m_pImpl->renderer.get() : nullptr;
+    return m_Renderer.get();
 }
 
 void Application::shutdown() {
-    if (m_pImpl) {
-        if (m_pImpl->running) {
-            m_pImpl->running = false;
+    if (m_Spec.initialized) {
+        if (m_Spec.running) {
+            m_Spec.running = false;
         }
-        if (m_pImpl->renderer) {
-            m_pImpl->renderer->shutdown();
-            m_pImpl->renderer.reset();
+        if (m_Renderer) {
+            m_Renderer->shutdown();
+            m_Renderer.reset();
         }
-
-        Platform::Platform::shutdown(m_pImpl->platformState);
-        m_pImpl.reset();
+        Platform::Platform::shutdown(m_PlatformState);
+    } else {
+        LOG_FATAL("SHUTDOWN ERROR: App not initialized!");
     }
 }
 
-}
+} // namespace Core
+

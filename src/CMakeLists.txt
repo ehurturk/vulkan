@@ -11,7 +11,11 @@ target_sources(engine
         core/logger.cpp
         core/application.cpp
         core/memory/destack_allocator.cpp
-        
+        core/memory/stack_allocator.cpp
+        core/memory/double_buffered_allocator.cpp
+        core/memory/pool_allocator.cpp
+        core/memory/scratch_allocator.cpp
+
         # Platform files
         platform/platform.cpp
         platform/platform_linux.cpp
@@ -19,7 +23,7 @@ target_sources(engine
         platform/platform_macos.cpp
         platform/platform_glfw.cpp
         platform/window.cpp
-        
+
         # Add other source files as your project grows
         renderer/backend/vulkan/vulkan_renderer.cpp
         renderer/backend/opengl/opengl_renderer.cpp
@@ -32,20 +36,27 @@ set(ENGINE_HEADERS
     core/assert.hpp
     core/logger.hpp
     core/application.hpp
-    core/memory/destack_allocator.hpp
     defines.hpp
 
+    core/memory/destack_allocator.hpp
+    core/memory/stack_allocator.hpp
+    core/memory/double_buffered_allocator.hpp
+    core/memory/pool_allocator.hpp
+    core/memory/scratch_allocator.hpp
+    core/memory/memory.hpp
+    core/memory/align_utils.hpp
+
     types/game_types.hpp
-    
+
     # Platform headers
     platform/platform.hpp
     platform/window.hpp
-    
+
     # Add other header files as your project grows
     renderer/backend/renderer.hpp
     renderer/backend/vulkan/vulkan_renderer.hpp
     renderer/backend/opengl/opengl_renderer.hpp
-    
+
     # resource/...
 )
 
@@ -55,15 +66,15 @@ target_sources(engine
 )
 
 # Set include directories
-target_include_directories(engine 
-    PUBLIC 
+target_include_directories(engine
+    PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}  # Makes src/ a public include dir
 )
 
 # Link dependencies
-target_link_libraries(engine 
-    PUBLIC 
-        Vulkan::Vulkan 
+target_link_libraries(engine
+    PUBLIC
+        Vulkan::Vulkan
         glfw
 )
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${ENGINE_HEADERS} ${ENGINE_SOURCES})

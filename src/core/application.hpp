@@ -2,6 +2,7 @@
 
 #include "defines.hpp"
 #include "renderer/backend/renderer.hpp"
+#include "platform/platform.hpp"
 #include <memory>
 #include <string>
 
@@ -22,16 +23,25 @@ class Application {
     API b8 run();
     API void shutdown();
 
-    Renderer::Renderer *getRenderer() const;
+    [[nodiscard]] Renderer::Renderer *getRenderer() const;
 
-  private:
-    Application() = default;
-    ~Application() = default;
     Application(const Application &) = delete;
     Application &operator=(const Application &) = delete;
 
-    struct Impl;
-    std::unique_ptr<Impl> m_pImpl;
+  private:
+    Application();
+    ~Application() = default;
+
+    struct AppSpec {
+        b8 initialized = false;
+        b8 running = false;
+        b8 suspended = false;
+    };
+
+    std::unique_ptr<Renderer::Renderer> m_Renderer;
+    ApplicationConfig m_AppCfg;
+    Platform::Platform::State m_PlatformState;
+    AppSpec m_Spec;
 };
 
-}
+} // namespace Core

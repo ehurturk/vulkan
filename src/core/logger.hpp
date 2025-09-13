@@ -45,6 +45,7 @@ class Logger {
 };
 
 // Logging macros
+// TODO: Refactor this into a singleton instance
 #ifdef BUILD_DEBUG
 #define LOG_FATAL(format, ...)                                                                     \
     ::Core::Logger::getInstance().log(::Core::LogLevel::Fatal, format, ##__VA_ARGS__)

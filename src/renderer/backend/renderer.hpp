@@ -3,7 +3,7 @@
 
 namespace Renderer {
 
-enum class RendererBackendType { Vulkan = 0, OpenGL = 1 };
+enum class RendererBackendType { Vulkan, OpenGL };
 
 struct RendererConfig {
     RendererBackendType backend = RendererBackendType::Vulkan;
@@ -22,6 +22,7 @@ class Renderer {
     explicit Renderer(const RendererConfig &cfg);
     ~Renderer();
 
+    // delete copy operations, default move operations
     Renderer(const Renderer &) = delete;
     Renderer &operator=(const Renderer &) = delete;
     Renderer(Renderer &&) noexcept = default;
@@ -29,7 +30,7 @@ class Renderer {
 
     void initialize();
     void shutdown();
-    RendererBackendType backend_type() const noexcept;
+    [[nodiscard]] RendererBackendType backend_type() const noexcept;
 
   private:
     RendererConfig m_Config;

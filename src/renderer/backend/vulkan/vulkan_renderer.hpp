@@ -1,4 +1,5 @@
 #pragma once
+
 #include <vulkan/vulkan.h>
 #include <memory>
 
@@ -27,4 +28,4 @@ class VulkanRenderer final : public IRendererBackend {
 
     std::unique_ptr<VkState> m_vkState;
 };
-}
+} // namespace Renderer
