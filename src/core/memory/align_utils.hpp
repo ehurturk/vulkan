@@ -6,17 +6,32 @@
 #include <memory>
 
 namespace Core {
-namespace Align {
-inline uintptr_t alignAddress(uintptr_t addr, size_t align) {
-    const size_t mask = align - 1;
-    ASSERT((align & mask) == 0);
-    return (addr + mask) & ~mask;
+namespace MemoryUtil {
+
+template<typename NonPtrType>
+constexpr NonPtrType AlignTo(NonPtrType t, size_t align) {
+    size_t bump = static_cast<size_t>(t) + (align - 1);
+    size_t trunc = bump & ~(align - 1);
+    return static_cast<NonPtrType>(trunc);
 }
 
-template <typename T> inline T *alignPtr(T *ptr, size_t align) {
-    const uintptr_t addr = std::reinterpret_pointer_cast<uintptr_t>(ptr);
-    const uintptr_t addrAligned = alignAddress(addr, align);
-    return std::reinterpret_pointer_cast<T *>(addrAligned);
+template<typename PtrType>
+constexpr PtrType* AlignTo(PtrType* t, size_t align) {
+    return reinterpret_cast<PtrType *>(AlignTo(reinterpret_cast<std::uintptr_t>(t), align));
 }
-}; // namespace Align
+
+template<typename NonPtrType>
+constexpr bool IsAligned(NonPtrType t, size_t align) {
+    return (t & (align - 1)) == 0;
+}
+template<typename PtrType>
+constexpr bool IsAligned(PtrType *t, size_t align) {
+    return (reinterpret_cast<std::uintptr_t>(t) & (align - 1)) == 0;
+}
+
+constexpr bool IsPowerOfTwo(const uintptr_t x) {
+    return (x & (x-1)) == 0;
+}
+
+}; // namespace MemoryUtil
 }; // namespace Core

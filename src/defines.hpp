@@ -5,21 +5,21 @@
 
 using uint = unsigned int;
 
-using u8 = std::uint8_t;
-using u16 = std::uint16_t;
-using u32 = std::uint32_t;
-using u64 = std::uint64_t;
+using U8 = std::uint8_t;
+using U16 = std::uint16_t;
+using U32 = std::uint32_t;
+using U64 = std::uint64_t;
 
-using i8 = std::int8_t;
-using i16 = std::int16_t;
-using i32 = std::int32_t;
-using i64 = std::int64_t;
+using I8 = std::int8_t;
+using I16 = std::int16_t;
+using I32 = std::int32_t;
+using I64 = std::int64_t;
 
-using f32 = float;
-using f64 = double;
+using F32 = float;
+using F64 = double;
 
-using b8 = bool;
-using b32 = std::int32_t;
+using B8 = bool;
+using B32 = std::int32_t;
 
 namespace Colors {
     inline constexpr std::string_view BLACK = "\033[0;30m";

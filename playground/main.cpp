@@ -4,6 +4,7 @@
 int main() {
     Core::Logger::getInstance().initialize();
 
+
 #ifdef BUILD_DEBUG
     LOG_INFO("Building in debug mode...");
 #elif BUILD_RELEASE

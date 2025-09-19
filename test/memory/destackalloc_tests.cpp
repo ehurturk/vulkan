@@ -3,6 +3,8 @@
 #include <core/memory/memory.hpp>
 #include <cstring>
 
+#include "core/logger.hpp"
+
 namespace Core {
 
 class DestackAllocatorTest : public ::testing::Test {
@@ -45,13 +47,18 @@ TEST_F(DestackAllocatorTest, BothDirections_AllocateCorrectly) {
 
     EXPECT_NE(topPtr, nullptr);
     EXPECT_NE(bottomPtr, nullptr);
-
+    std::cout << "TOP PTR: " << topPtr << "| BOTTOM PTR: " << bottomPtr << std::endl;
+    // top ptr:    0x130012400
+    // bottom ptr: 0x130012000
+    // diff: 0x400 -> a clear difference of 0x400 bytes (with alignment)
     // Top pointer should be at lower address than bottom pointer
-    EXPECT_LT(topPtr, bottomPtr);
+    // TODO: 0X400 difference between top and bottom (256*4 = 1024) byte difference.
+    EXPECT_LT(bottomPtr, topPtr);
 
     // Should have allocated both sizes
-    u32 expectedUsed = 32 + 48;
+    U32 expectedUsed = 32 + 48;
     // Account for potential alignment padding
+    // TODO: actual: 48 vs 80
     EXPECT_GE(allocator->getUsedBytes(), expectedUsed);
 }
 
@@ -126,11 +133,11 @@ TEST_F(DestackAllocatorTest, FreeToTopMarker_ResetsCorrectly) {
 
     void *ptr2 = allocator->alloc(48, DestackAllocator::HeapDirection::FRAME_TOP,
                                   MemoryTag::MEMORY_TAG_DARRAY);
-    u32 usedAfterSecondAlloc = allocator->getUsedBytes();
+    U32 usedAfterSecondAlloc = allocator->getUsedBytes();
 
     allocator->freeTo(marker);
-    u32 usedAfterFree = allocator->getUsedBytes();
-
+    U32 usedAfterFree = allocator->getUsedBytes();
+    // TODO: actual: 0 vs 0
     EXPECT_LT(usedAfterFree, usedAfterSecondAlloc);
 
     // Should be able to allocate again from the freed space
@@ -146,10 +153,10 @@ TEST_F(DestackAllocatorTest, FreeToBottomMarker_ResetsCorrectly) {
 
     void *ptr2 = allocator->alloc(48, DestackAllocator::HeapDirection::FRAME_BOTTOM,
                                   MemoryTag::MEMORY_TAG_DARRAY);
-    u32 usedAfterSecondAlloc = allocator->getUsedBytes();
+    U32 usedAfterSecondAlloc = allocator->getUsedBytes();
 
     allocator->freeTo(marker);
-    u32 usedAfterFree = allocator->getUsedBytes();
+    U32 usedAfterFree = allocator->getUsedBytes();
 
     EXPECT_LT(usedAfterFree, usedAfterSecondAlloc);
 
@@ -163,7 +170,6 @@ TEST_F(DestackAllocatorTest, Clear_ResetsToEmpty) {
     allocator->alloc(100, DestackAllocator::HeapDirection::FRAME_TOP, MemoryTag::MEMORY_TAG_ARRAY);
     allocator->alloc(200, DestackAllocator::HeapDirection::FRAME_BOTTOM,
                      MemoryTag::MEMORY_TAG_DARRAY);
-
     EXPECT_GT(allocator->getUsedBytes(), 0);
 
     allocator->clear();
@@ -178,23 +184,34 @@ TEST_F(DestackAllocatorTest, AllocationsFromBothEnds_DontOverlap) {
     std::vector<void *> topPtrs;
     std::vector<void *> bottomPtrs;
 
-    const u32 allocSize = 32;
+    constexpr U32 allocSize = 32;
 
     // Allocate from both ends alternately
     for (int i = 0; i < 10 && allocator->getAvailableBytes() >= allocSize * 2; ++i) {
+        // allocate from the frame top:
+        // [          ]
+        // b          t
+        // [       |  ]
+        // b       t
         void *topPtr = allocator->alloc(allocSize, DestackAllocator::HeapDirection::FRAME_TOP,
                                         MemoryTag::MEMORY_TAG_ARRAY);
+        // allocate from the frame bottom:
+        // [          ]
+        // b          t
+        // [  |    |  ]
+        //    b    t
         void *bottomPtr = allocator->alloc(allocSize, DestackAllocator::HeapDirection::FRAME_BOTTOM,
                                            MemoryTag::MEMORY_TAG_DARRAY);
-
+        // TODO: in the end, top should be greater than bottom obviously.
         if (topPtr != nullptr)
             topPtrs.push_back(topPtr);
         if (bottomPtr != nullptr)
             bottomPtrs.push_back(bottomPtr);
 
-        // Ensure top is always less than bottom
+        std::cout << "TOP: " << topPtr << " | BOTTOM: " << bottomPtr << std::endl;
+
         if (topPtr && bottomPtr) {
-            EXPECT_LT(topPtr, bottomPtr);
+            EXPECT_LT(bottomPtr, topPtr);
         }
     }
 
@@ -204,7 +221,7 @@ TEST_F(DestackAllocatorTest, AllocationsFromBothEnds_DontOverlap) {
 
 TEST_F(DestackAllocatorTest, ExhaustMemory_HandledGracefully) {
     // Try to allocate more memory than available
-    const u32 largeSize = 512;
+    const U32 largeSize = 512;
 
     void *ptr1 = allocator->alloc(largeSize, DestackAllocator::HeapDirection::FRAME_TOP,
                                   MemoryTag::MEMORY_TAG_ARRAY);
@@ -228,7 +245,7 @@ TEST_F(DestackAllocatorTest, ZeroSizeAllocation_HandledCorrectly) {
 
     // Implementation might return nullptr or valid pointer for zero size
     // But should not crash or corrupt state
-    u32 usedAfter = allocator->getUsedBytes();
+    U32 usedAfter = allocator->getUsedBytes();
     EXPECT_LE(usedAfter, 32); // At most alignment padding
 }
 
@@ -320,13 +337,13 @@ TEST_F(DestackAllocatorTest, MixedOperations_WorkCorrectly) {
     EXPECT_NE(topPtr2, nullptr);
     EXPECT_NE(bottomPtr2, nullptr);
 
-    u32 usedBeforeFree = allocator->getUsedBytes();
+    U32 usedBeforeFree = allocator->getUsedBytes();
 
     // Free back to markers
     allocator->freeTo(topMarker);
     allocator->freeTo(bottomMarker);
 
-    u32 usedAfterFree = allocator->getUsedBytes();
+    U32 usedAfterFree = allocator->getUsedBytes();
     EXPECT_LT(usedAfterFree, usedBeforeFree);
 
     // Should be able to allocate again
@@ -338,37 +355,37 @@ TEST_F(DestackAllocatorTest, MixedOperations_WorkCorrectly) {
     EXPECT_NE(topPtr3, nullptr);
     EXPECT_NE(bottomPtr3, nullptr);
 }
-
+// TODO: disable performance test with debug builds for now
 // Performance test (with realistic expectations)
-TEST_F(DestackAllocatorTest, Allocation_IsEfficient) {
-    const int numAllocations = 100; // Reduced number for realistic test
-    const u32 allocSize = 8;        // Small allocations
+ TEST_F(DestackAllocatorTest, Allocation_IsEfficient) {
+     const int numAllocations = 100; // Reduced number for realistic test
+     const U32 allocSize = 8;        // Small allocations
 
-    auto start = std::chrono::high_resolution_clock::now();
+     auto start = std::chrono::high_resolution_clock::now();
 
-    int successfulAllocs = 0;
-    for (int i = 0; i < numAllocations && allocator->getAvailableBytes() >= allocSize * 2; ++i) {
-        // Alternate between top and bottom
-        auto direction = (i % 2 == 0) ? DestackAllocator::HeapDirection::FRAME_TOP
-                                      : DestackAllocator::HeapDirection::FRAME_BOTTOM;
+     int successfulAllocs = 0;
+     for (int i = 0; i < numAllocations && allocator->getAvailableBytes() >= allocSize * 2; ++i) {
+         // Alternate between top and bottom
+         auto direction = (i % 2 == 0) ? DestackAllocator::HeapDirection::FRAME_TOP
+                                       : DestackAllocator::HeapDirection::FRAME_BOTTOM;
 
-        void *ptr = allocator->alloc(allocSize, direction, MemoryTag::MEMORY_TAG_ARRAY,
-                                     1); // 1-byte alignment
-        if (ptr != nullptr) {
-            successfulAllocs++;
-        } else {
-            break;
-        }
-    }
+         void *ptr = allocator->alloc(allocSize, direction, MemoryTag::MEMORY_TAG_ARRAY,
+                                      1); // 1-byte alignment
+         if (ptr != nullptr) {
+             successfulAllocs++;
+         } else {
+             break;
+         }
+     }
 
-    auto end = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+     auto end = std::chrono::high_resolution_clock::now();
+     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
 
-    EXPECT_GT(successfulAllocs, 0);
-    EXPECT_LT(duration.count(), 10000); // 10ms should be plenty
+     EXPECT_GT(successfulAllocs, 0);
+     EXPECT_LT(duration.count(), 1000); // 1ms
 
-    std::cout << "Completed " << successfulAllocs << " allocations in " << duration.count()
-              << " microseconds" << std::endl;
-}
+     std::cout << "Completed " << successfulAllocs << " allocations in " << duration.count()
+               << " microseconds" << std::endl;
+ }
 
 } // namespace Core

@@ -5,8 +5,8 @@
 
 namespace Core {
 
-DestackAllocator::DestackAllocator(u32 stackSize)
-    : m_Size(stackSize), m_Top(0), m_Bottom(m_Size), m_Buffer(static_cast<u8 *>(malloc(m_Size))) {}
+DestackAllocator::DestackAllocator(const U32 stackSize)
+    : m_Size(stackSize), m_Top(0), m_Bottom(m_Size), m_Buffer(static_cast<U8 *>(malloc(m_Size))) {}
 
 DestackAllocator::~DestackAllocator() {
     clear();
@@ -15,17 +15,18 @@ DestackAllocator::~DestackAllocator() {
     }
 }
 
-void *DestackAllocator::alloc(u32 size, HeapDirection heapnr, MemoryTag tag, u32 alignment) {
+void *DestackAllocator::alloc(const U32 size, const HeapDirection heapnr, MemoryTag tag,
+                              const U32 alignment) {
     LOG_INFO("[StackAllocator]:Allocating {} bytes for tag: {}", size, memoryTagToString(tag));
-    u32 topAligned = Align::alignAddress(m_Top, alignment);
-    u32 bottomAligned = Align::alignAddress(m_Bottom, alignment);
+    const U32 topAligned = MemoryUtil::AlignTo<U32>(m_Top, alignment);
+    const U32 bottomAligned = MemoryUtil::AlignTo<U32>(m_Bottom, alignment);
 
-    if (bottomAligned - topAligned <= size) {
+    if (bottomAligned - topAligned < size) {
         LOG_ERROR("[DetackAllocator]: Size is full");
         return nullptr;
     }
 
-    u8 *result;
+    U8 *result;
 
     switch (heapnr) {
     case HeapDirection::FRAME_TOP:
@@ -45,7 +46,7 @@ void *DestackAllocator::alloc(u32 size, HeapDirection heapnr, MemoryTag tag, u32
 }
 
 DestackAllocator::Marker DestackAllocator::getMarker(HeapDirection dir) const {
-    Marker m;
+    Marker m{};
     m.dir = dir;
     // Note:
     // if FRAME_TOP is specified, we return the bottom (which grows downwards - essentially acts
@@ -61,13 +62,12 @@ DestackAllocator::Marker DestackAllocator::getMarker(HeapDirection dir) const {
     default:
         LOG_ERROR("[DestackAllocator]: Invalid Heap Direction: {}", static_cast<int>(dir));
         return {};
-        break;
     }
 
     return m;
 }
 
-void DestackAllocator::freeTo(Marker mark) {
+void DestackAllocator::freeTo(const Marker mark) {
     switch (mark.dir) {
     case HeapDirection::FRAME_TOP:
         m_Bottom = mark.mark;
@@ -80,7 +80,7 @@ void DestackAllocator::freeTo(Marker mark) {
 
 void DestackAllocator::clear() {
     m_Top = 0;
-    m_Bottom = 0;
+    m_Bottom = m_Size;
 }
 
 }; // namespace Core

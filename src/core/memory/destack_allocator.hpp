@@ -13,28 +13,28 @@ class DestackAllocator {
     enum class HeapDirection { FRAME_TOP, FRAME_BOTTOM };
 
     struct Marker {
-        u32 mark;
+        U32 mark;
         HeapDirection dir;
     };
 
-    explicit DestackAllocator(u32 stackSize);
+    explicit DestackAllocator(U32 stackSize);
     ~DestackAllocator();
 
     // allocates memory with size @size bytes on the heap @heapnr
     // with tag @tag, with (optional) alignment of @alignment.
-    void *alloc(u32 size, HeapDirection heapnr, MemoryTag tag, u32 alignment = 16);
+    void *alloc(U32 size, HeapDirection heapnr, MemoryTag tag, U32 alignment = 16);
 
-    Marker getMarker(HeapDirection dir) const;
+    [[nodiscard]] Marker getMarker(HeapDirection dir) const;
 
     void freeTo(Marker mark);
 
     void clear();
 
-    u32 getUsedBytes() const { return m_Top; }
-    u32 getAvailableBytes() const { return m_Size - m_Top; }
+    [[nodiscard]] U32 getUsedBytes() const { return m_Top + (m_Size - m_Bottom); }
+    [[nodiscard]] U32 getAvailableBytes() const { return m_Bottom - m_Top; }
 
   private:
-    u32 m_Size;
+    U32 m_Size;
 
     // top grows, bottom decreases
     // [  |        |     ]
@@ -47,10 +47,10 @@ class DestackAllocator {
     // [     |   |       ]
     //       ^   ^
     //       t   b
-    u32 m_Top;
-    u32 m_Bottom;
+    U32 m_Top;
+    U32 m_Bottom;
 
     // actual buffer
-    u8 *m_Buffer;
+    U8 *m_Buffer;
 };
 }; // namespace Core

@@ -9,8 +9,8 @@
 namespace Core {
 
 struct ApplicationConfig {
-    i32 width;
-    i32 height;
+    I32 width;
+    I32 height;
     std::string name;
     Renderer::RendererBackendType backend;
 };
@@ -19,8 +19,8 @@ class Application {
   public:
     API static Application &getInstance();
 
-    API b8 create(const ApplicationConfig &config);
-    API b8 run();
+    API B8 create(const ApplicationConfig &config);
+    API B8 run();
     API void shutdown();
 
     [[nodiscard]] Renderer::Renderer *getRenderer() const;
@@ -33,9 +33,9 @@ class Application {
     ~Application() = default;
 
     struct AppSpec {
-        b8 initialized = false;
-        b8 running = false;
-        b8 suspended = false;
+        B8 initialized = false;
+        B8 running = false;
+        B8 suspended = false;
     };
 
     std::unique_ptr<Renderer::Renderer> m_Renderer;

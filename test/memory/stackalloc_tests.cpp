@@ -72,7 +72,7 @@ TEST_F(StackAllocatorTest, Alignment_CustomAlignment) {
 }
 
 TEST_F(StackAllocatorTest, Alignment_PowerOfTwoOnly) {
-    for (u32 alignment = 1; alignment <= 256; alignment *= 2) {
+    for (U32 alignment = 1; alignment <= 256; alignment *= 2) {
         StackAllocator testAlloc(1024);
         void *ptr = testAlloc.alloc(1, MemoryTag::MEMORY_TAG_APPLICATION, alignment);
 

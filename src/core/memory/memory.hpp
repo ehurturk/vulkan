@@ -74,11 +74,11 @@ class MemoryAllocator {
     MemoryAllocator();
     ~MemoryAllocator();
 
-    API void *allocate(u64 size, MemoryTag tag);
-    API void free(void *block, u64 size, MemoryTag tag);
-    API void *zero_memory(void *block, u64 size);
-    API void *copy_memory(void *dest, const void *source, u64 size);
-    API void *set_memory(void *block, i32 value, u64 size);
+    API void *allocate(U64 size, MemoryTag tag);
+    API void free(void *block, U64 size, MemoryTag tag);
+    API void *zero_memory(void *block, U64 size);
+    API void *copy_memory(void *dest, const void *source, U64 size);
+    API void *set_memory(void *block, I32 value, U64 size);
 };
 
 }; // namespace Core

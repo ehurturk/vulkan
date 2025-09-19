@@ -4,7 +4,7 @@
 #include <format>
 
 void assertion_report_failure(std::string_view expr, std::string_view msg, std::string_view file,
-                              i32 line) {
+                              I32 line) {
     Core::Logger::getInstance().log(Core::LogLevel::Fatal,
                               "Assertion Failure: {}, message: {}, in file: {}, in line: {}", expr,
                               msg, file, line);
@@ -12,7 +12,7 @@ void assertion_report_failure(std::string_view expr, std::string_view msg, std::
 namespace Core {
 
 
-b8 Logger::initialize() {
+B8 Logger::initialize() {
     // TODO: create a log file
     return true;
 }

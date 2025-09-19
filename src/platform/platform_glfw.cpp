@@ -16,10 +16,10 @@ namespace Platform {
 
 struct InternalState {
     std::unique_ptr<Window> window;
-    b8 initialized = false;
+    B8 initialized = false;
 };
 
-b8 Platform::startup(State &state, std::string_view name, i32 width, i32 height) {
+B8 Platform::startup(State &state, std::string_view name, I32 width, I32 height) {
     std::unique_ptr<InternalState> internalState = std::make_unique<InternalState>();
 
     Window::Config winConfig{.width = width,
@@ -42,7 +42,7 @@ b8 Platform::startup(State &state, std::string_view name, i32 width, i32 height)
     return true;
 }
 
-b8 Platform::shouldRun(State &state) {
+B8 Platform::shouldRun(State &state) {
     InternalState *internalState = static_cast<InternalState *>(state.internalState.get());
     return internalState && internalState->window && !internalState->window->shouldClose();
 }
@@ -55,7 +55,7 @@ void Platform::shutdown(State &state) {
     state.internalState.reset();
 }
 
-b8 Platform::dispatchMessages(State &state) {
+B8 Platform::dispatchMessages(State &state) {
     InternalState *internalState = static_cast<InternalState *>(state.internalState.get());
     internalState->window->pollEvents();
     return true;
@@ -65,9 +65,9 @@ void Platform::consoleWrite(std::string_view msg, std::string_view color) {
     std::cout << color << msg << Colors::Format::RESET << '\n';
 }
 
-f64 Platform::getAbsoluteTime() { return glfwGetTime(); }
+F64 Platform::getAbsoluteTime() { return glfwGetTime(); }
 
-void Platform::sleep(u64 ms) {
+void Platform::sleep(U64 ms) {
 #if _POSIX_C_SOURCE >= 199309L
     struct timespec ts;
     ts.tv_sec = ms / 1000;
@@ -81,17 +81,17 @@ void Platform::sleep(u64 ms) {
 #endif
 }
 
-void *Platform::allocate(u64 size, b8 aligned) { return std::malloc(size); }
+void *Platform::allocate(U64 size, B8 aligned) { return std::malloc(size); }
 
-void Platform::free(void *block, b8 aligned) { std::free(block); }
+void Platform::free(void *block, B8 aligned) { std::free(block); }
 
-void *Platform::zeroMemory(void *block, u64 size) { return std::memset(block, 0, size); }
+void *Platform::zeroMemory(void *block, U64 size) { return std::memset(block, 0, size); }
 
-void *Platform::copyMemory(void *dest, const void *source, u64 size) {
+void *Platform::copyMemory(void *dest, const void *source, U64 size) {
     return std::memcpy(dest, source, size);
 }
 
-void *Platform::setMemory(void *dest, i32 value, u64 size) {
+void *Platform::setMemory(void *dest, I32 value, U64 size) {
     return std::memset(dest, value, size);
 }
 

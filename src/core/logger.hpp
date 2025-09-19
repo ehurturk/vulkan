@@ -5,6 +5,7 @@
 #include <string_view>
 #include <format>
 #include <array>
+#include <filesystem>
 
 #define LOG_WARN_ENABLED 1
 #define LOG_INFO_ENABLED 1
@@ -13,7 +14,7 @@
 
 namespace Core {
 
-enum class LogLevel : u8 { Fatal = 0, Error, Warn, Info, Debug, Trace };
+enum class LogLevel : U8 { Fatal = 0, Error, Warn, Info, Debug, Trace };
 
 class Logger {
   public:
@@ -22,14 +23,16 @@ class Logger {
         return instance;
     }
 
-    b8 initialize();
+    B8 initialize();
     void shutdown();
 
-    template <typename... Args> void log(LogLevel level, std::format_string<Args...> format, Args &&...args) {
+    template <typename... Args>
+    void log(LogLevel level, std::format_string<Args...> format, Args &&...args) {
         logOutput(level, std::vformat(format.get(), std::make_format_args(args...)));
     }
 
   private:
+    /* deleted ctor, dtor, copy ctor */
     Logger() = default;
     ~Logger() = default;
     Logger(const Logger &) = delete;
@@ -45,7 +48,6 @@ class Logger {
 };
 
 // Logging macros
-// TODO: Refactor this into a singleton instance
 #ifdef BUILD_DEBUG
 #define LOG_FATAL(format, ...)                                                                     \
     ::Core::Logger::getInstance().log(::Core::LogLevel::Fatal, format, ##__VA_ARGS__)
@@ -88,4 +90,4 @@ class Logger {
 #define LOG_DEBUG(format, ...) ((void)0)
 #define LOG_TRACE(format, ...) ((void)0)
 #endif
-}
+} // namespace Core

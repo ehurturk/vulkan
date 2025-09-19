@@ -21,7 +21,7 @@ Application &Application::getInstance() {
     return instance;
 }
 
-b8 Application::create(const ApplicationConfig &config) {
+B8 Application::create(const ApplicationConfig &config) {
     if (m_Spec.initialized) {
         LOG_ERROR("Application is already initialized. Can't create more than one application.");
         return false;
@@ -42,7 +42,7 @@ b8 Application::create(const ApplicationConfig &config) {
     return true;
 }
 
-b8 Application::run() {
+B8 Application::run() {
     if (!m_Spec.initialized) {
         LOG_ERROR("Application not initialized");
         return false;

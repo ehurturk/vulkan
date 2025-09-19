@@ -4,7 +4,7 @@
 
 namespace Platform {
 
-b8 Window::s_glfwInitialized = false;
+B8 Window::s_glfwInitialized = false;
 
 Window::Window(const Config &config) : m_config(config) {
     LOG_INFO("Creating window {}...", m_config.name);
@@ -20,7 +20,7 @@ Window::Window(const Config &config) : m_config(config) {
 
 Window::~Window() { shutdown(); }
 
-b8 Window::create() {
+B8 Window::create() {
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_RESIZABLE, m_config.resizable ? GLFW_TRUE : GLFW_FALSE);
 
@@ -44,7 +44,7 @@ b8 Window::create() {
 
 void Window::pollEvents() { glfwPollEvents(); }
 
-b8 Window::shouldClose() const { return m_handle ? glfwWindowShouldClose(m_handle) : true; }
+B8 Window::shouldClose() const { return m_handle ? glfwWindowShouldClose(m_handle) : true; }
 
 void Window::shutdown() {
     if (m_handle) {

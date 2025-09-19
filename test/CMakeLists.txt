@@ -10,6 +10,7 @@ add_executable(run_tests
     engine_tests.cpp
     memory/stackalloc_tests.cpp
     memory/destackalloc_tests.cpp
+    memory/poolalloc_tests.cpp
 )
 
 target_link_libraries(run_tests
