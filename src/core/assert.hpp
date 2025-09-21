@@ -13,15 +13,17 @@
 #define debugBreak() __building_trap()
 #endif
 
-API void assertion_report_failure(std::string_view expr, std::string_view msg,
-                                  std::string_view file, I32 line);
+API void assertion_report_failure(std::string_view expr,
+                                  std::string_view msg,
+                                  std::string_view file,
+                                  I32 line);
 
-#define ASSERT_MSG(expr, msg)                                                                      \
-    {                                                                                              \
-        if (expr) {                                                                                \
-        } else {                                                                                   \
-            assertion_report_failure(#expr, msg, __FILE__, __LINE__);                              \
-        }                                                                                          \
+#define ASSERT_MSG(expr, msg)                                         \
+    {                                                                 \
+        if (expr) {                                                   \
+        } else {                                                      \
+            assertion_report_failure(#expr, msg, __FILE__, __LINE__); \
+        }                                                             \
     }
 
 #define SASSERT_MSG(expr, msg) static_assert(expr, msg)

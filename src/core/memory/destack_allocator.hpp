@@ -6,10 +6,10 @@
 // allocation, avoids fragmentation as much as possible.
 namespace Core {
 
-enum class MemoryTag; // forward declare to prevent circular imports
+enum class MemoryTag;  // forward declare to prevent circular imports
 
 class DestackAllocator {
-  public:
+   public:
     enum class HeapDirection { FRAME_TOP, FRAME_BOTTOM };
 
     struct Marker {
@@ -22,7 +22,7 @@ class DestackAllocator {
 
     // allocates memory with size @size bytes on the heap @heapnr
     // with tag @tag, with (optional) alignment of @alignment.
-    void *alloc(U32 size, HeapDirection heapnr, MemoryTag tag, U32 alignment = 16);
+    void* alloc(U32 size, HeapDirection heapnr, MemoryTag tag, U32 alignment = 16);
 
     [[nodiscard]] Marker getMarker(HeapDirection dir) const;
 
@@ -33,7 +33,7 @@ class DestackAllocator {
     [[nodiscard]] U32 getUsedBytes() const { return m_Top + (m_Size - m_Bottom); }
     [[nodiscard]] U32 getAvailableBytes() const { return m_Bottom - m_Top; }
 
-  private:
+   private:
     U32 m_Size;
 
     // top grows, bottom decreases
@@ -51,6 +51,6 @@ class DestackAllocator {
     U32 m_Bottom;
 
     // actual buffer
-    U8 *m_Buffer;
+    U8* m_Buffer;
 };
-}; // namespace Core
+};  // namespace Core

@@ -6,7 +6,7 @@ namespace Platform {
 
 B8 Window::s_glfwInitialized = false;
 
-Window::Window(const Config &config) : m_config(config) {
+Window::Window(const Config& config) : m_config(config) {
     LOG_INFO("Creating window {}...", m_config.name);
 
     if (!s_glfwInitialized) {
@@ -18,7 +18,9 @@ Window::Window(const Config &config) : m_config(config) {
     }
 }
 
-Window::~Window() { shutdown(); }
+Window::~Window() {
+    shutdown();
+}
 
 B8 Window::create() {
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
@@ -28,7 +30,7 @@ B8 Window::create() {
         m_handle = glfwCreateWindow(m_config.width, m_config.height, m_config.name.c_str(), nullptr,
                                     nullptr);
     } else {
-        GLFWmonitor *primary = glfwGetPrimaryMonitor();
+        GLFWmonitor* primary = glfwGetPrimaryMonitor();
         m_handle = glfwCreateWindow(m_config.width, m_config.height, m_config.name.c_str(), primary,
                                     nullptr);
     }
@@ -42,9 +44,13 @@ B8 Window::create() {
     return true;
 }
 
-void Window::pollEvents() { glfwPollEvents(); }
+void Window::pollEvents() {
+    glfwPollEvents();
+}
 
-B8 Window::shouldClose() const { return m_handle ? glfwWindowShouldClose(m_handle) : true; }
+B8 Window::shouldClose() const {
+    return m_handle ? glfwWindowShouldClose(m_handle) : true;
+}
 
 void Window::shutdown() {
     if (m_handle) {
@@ -54,4 +60,4 @@ void Window::shutdown() {
     }
 }
 
-}
+}  // namespace Platform

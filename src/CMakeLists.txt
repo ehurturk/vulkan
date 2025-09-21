@@ -1,20 +1,20 @@
-# Find required packages
 find_package(Vulkan REQUIRED)
 find_package(glfw3 REQUIRED)
 
-# Create engine library
-add_library(engine STATIC ${ENGINE_SOURCES})
+add_library(engine STATIC ${ENGINE_SOURCES}
+        core/containers/PooledVector.hpp)
 
 target_sources(engine
-    PRIVATE
+        PRIVATE
         # Core files
         core/logger.cpp
         core/application.cpp
+
         core/memory/destack_allocator.cpp
         core/memory/stack_allocator.cpp
         core/memory/double_buffered_allocator.cpp
-        core/memory/pool_allocator.cpp
         core/memory/scratch_allocator.cpp
+
 
         # Platform files
         platform/platform.cpp
@@ -24,66 +24,65 @@ target_sources(engine
         platform/platform_glfw.cpp
         platform/window.cpp
 
-        # Add other source files as your project grows
         renderer/backend/vulkan/vulkan_renderer.cpp
         renderer/backend/opengl/opengl_renderer.cpp
         renderer/backend/renderer.cpp
-        # resource/...
 )
 
 set(ENGINE_HEADERS
-    # Core headers
-    core/assert.hpp
-    core/logger.hpp
-    core/application.hpp
-    defines.hpp
+        # Core headers
+        core/logger.hpp
+        core/assert.hpp
+        core/application.hpp
+        defines.hpp
 
-    core/memory/destack_allocator.hpp
-    core/memory/stack_allocator.hpp
-    core/memory/double_buffered_allocator.hpp
-    core/memory/pool_allocator.hpp
-    core/memory/scratch_allocator.hpp
-    core/memory/memory.hpp
-    core/memory/align_utils.hpp
+        core/memory/destack_allocator.hpp
+        core/memory/stack_allocator.hpp
+        core/memory/double_buffered_allocator.hpp
+        core/memory/pool_allocator.hpp
+        core/memory/scratch_allocator.hpp
+        core/memory/memory.hpp
+        core/memory/align_utils.hpp
 
-    types/game_types.hpp
+        core/stl/PoolMemoryResource.hpp
 
-    # Platform headers
-    platform/platform.hpp
-    platform/window.hpp
+        types/game_types.hpp
 
-    # Add other header files as your project grows
-    renderer/backend/renderer.hpp
-    renderer/backend/vulkan/vulkan_renderer.hpp
-    renderer/backend/opengl/opengl_renderer.hpp
+        # Platform headers
+        platform/platform.hpp
+        platform/window.hpp
 
-    # resource/...
+        renderer/backend/renderer.hpp
+        renderer/backend/vulkan/vulkan_renderer.hpp
+        renderer/backend/opengl/opengl_renderer.hpp
+
+        core/containers/static_vector.hpp
+
 )
 
 target_sources(engine
-    INTERFACE
+        INTERFACE
         ${ENGINE_HEADERS}
 )
 
-# Set include directories
+
 target_include_directories(engine
-    PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR}  # Makes src/ a public include dir
+        PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-# Link dependencies
 target_link_libraries(engine
-    PUBLIC
+        PUBLIC
         Vulkan::Vulkan
         glfw
 )
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${ENGINE_HEADERS} ${ENGINE_SOURCES})
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
-if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    target_compile_definitions(engine PRIVATE BUILD_DEBUG=1)
-elseif(CMAKE_BUILD_TYPE STREQUAL "Release")
-    target_compile_definitions(engine PRIVATE BUILD_RELEASE=1)
-endif()
+if (CMAKE_BUILD_TYPE STREQUAL "Debug")
+    target_compile_definitions(engine PUBLIC BUILD_DEBUG=1)
+elseif (CMAKE_BUILD_TYPE STREQUAL "Release")
+    target_compile_definitions(engine PUBLIC BUILD_RELEASE=1)
+endif ()
 
 # Output some debug info
 message(STATUS "Engine sources: ${ENGINE_SOURCES}")

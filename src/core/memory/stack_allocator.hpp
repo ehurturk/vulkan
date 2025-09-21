@@ -7,13 +7,13 @@ namespace Core {
 enum class MemoryTag;
 
 class StackAllocator {
-  public:
+   public:
     using Marker = U32;
 
     explicit StackAllocator(U32 stackSize);
     ~StackAllocator();
 
-    void *alloc(U32 size, MemoryTag tag, U32 alignment = 16);
+    void* alloc(U32 size, MemoryTag tag, U32 alignment = 16);
 
     Marker getMarker() const;
 
@@ -24,12 +24,12 @@ class StackAllocator {
     U32 getUsedBytes() const { return m_Top; }
     U32 getAvailableBytes() const { return m_Size - m_Top; }
 
-  private:
+   private:
     U32 m_Size;
     U32 m_Top;
 
     // actual buffer
-    U8 *m_Buffer;
+    U8* m_Buffer;
 };
 
-}; // namespace Core
+};  // namespace Core

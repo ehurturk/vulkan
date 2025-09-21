@@ -5,20 +5,22 @@
 
 #include <GLFW/glfw3.h>
 
-#define VULKAN_CHECK(x)                                                                            \
-    do {                                                                                           \
-        VkResult _r = (x);                                                                         \
-        if (_r != VK_SUCCESS) {                                                                    \
-            LOG_FATAL("Vulkan error: VkResult={}", static_cast<int>(_r));                          \
-            ASSERT(false);                                                                         \
-        }                                                                                          \
+#define VULKAN_CHECK(x)                                                   \
+    do {                                                                  \
+        VkResult _r = (x);                                                \
+        if (_r != VK_SUCCESS) {                                           \
+            LOG_FATAL("Vulkan error: VkResult={}", static_cast<int>(_r)); \
+            ASSERT(false);                                                \
+        }                                                                 \
     } while (0)
 
 namespace Renderer {
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL
-DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT severity, VkDebugUtilsMessageTypeFlagsEXT,
-              const VkDebugUtilsMessengerCallbackDataEXT *data, void *) {
+DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT severity,
+              VkDebugUtilsMessageTypeFlagsEXT,
+              const VkDebugUtilsMessengerCallbackDataEXT* data,
+              void*) {
     if (severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) {
         LOG_ERROR("[Vulkan] {}", data->pMessage);
     } else if (severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) {
@@ -33,9 +35,11 @@ static PFN_vkCreateDebugUtilsMessengerEXT pfnCreateDebugUtilsMessengerEXT = null
 static PFN_vkDestroyDebugUtilsMessengerEXT pfnDestroyDebugUtilsMessengerEXT = nullptr;
 
 VulkanRenderer::VulkanRenderer() : m_vkState(std::make_unique<VkState>()) {}
-VulkanRenderer::~VulkanRenderer() { shutdown(); }
+VulkanRenderer::~VulkanRenderer() {
+    shutdown();
+}
 
-void VulkanRenderer::initialize(const RendererConfig &cfg) {
+void VulkanRenderer::initialize(const RendererConfig& cfg) {
     m_vkState->validation = cfg.enableValidation;
     create_instance(m_vkState->validation);
     if (m_vkState->validation)
@@ -65,9 +69,9 @@ void VulkanRenderer::create_instance(bool enableValidation) {
     appInfo.apiVersion = VK_API_VERSION_1_2;
 
     uint32_t glfwCount = 0;
-    const char **glfwExts = glfwGetRequiredInstanceExtensions(&glfwCount);
+    const char** glfwExts = glfwGetRequiredInstanceExtensions(&glfwCount);
 
-    std::vector<const char *> extensions(glfwExts, glfwExts + glfwCount);
+    std::vector<const char*> extensions(glfwExts, glfwExts + glfwCount);
 
 #ifdef PLATFORM_APPLE
     extensions.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
@@ -77,8 +81,8 @@ void VulkanRenderer::create_instance(bool enableValidation) {
         extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
     }
 
-    const char *kValidationLayer = "VK_LAYER_KHRONOS_validation";
-    std::vector<const char *> layers;
+    const char* kValidationLayer = "VK_LAYER_KHRONOS_validation";
+    std::vector<const char*> layers;
     if (enableValidation) {
         // In production you’d enumerate and verify presence.
         layers.push_back(kValidationLayer);
@@ -128,4 +132,4 @@ void VulkanRenderer::destroy_debug_messenger() {
     }
 }
 
-} // namespace Renderer
+}  // namespace Renderer

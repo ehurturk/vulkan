@@ -5,23 +5,27 @@
 #include <memory>
 
 namespace Core {
-Application::Application():
+Application::Application()
+    :
 #ifdef BUILD_DEBUG
-    m_Renderer(std::make_unique<Renderer::Renderer>((Renderer::RendererConfig){.backend = Renderer::RendererBackendType::Vulkan, .enableValidation = true})),
+      m_Renderer(std::make_unique<Renderer::Renderer>(
+          (Renderer::RendererConfig){.backend = Renderer::RendererBackendType::Vulkan,
+                                     .enableValidation = true})),
 #elif BUILD_RELEASE
-    m_Renderer(std::make_unique<Renderer::Renderer>((Renderer::RendererConfig){.backend = Renderer::RendererBackendType::Vulkan, .enableValidation = false})),
+      m_Renderer(std::make_unique<Renderer::Renderer>(
+          (Renderer::RendererConfig){.backend = Renderer::RendererBackendType::Vulkan,
+                                     .enableValidation = false})),
 #endif
-    m_AppCfg({}), m_PlatformState({})
-{
-
+      m_AppCfg({}),
+      m_PlatformState({}) {
 }
 
-Application &Application::getInstance() {
+Application& Application::getInstance() {
     static Application instance;
     return instance;
 }
 
-B8 Application::create(const ApplicationConfig &config) {
+B8 Application::create(const ApplicationConfig& config) {
     if (m_Spec.initialized) {
         LOG_ERROR("Application is already initialized. Can't create more than one application.");
         return false;
@@ -63,7 +67,7 @@ B8 Application::run() {
     return true;
 }
 
-Renderer::Renderer *Application::getRenderer() const {
+Renderer::Renderer* Application::getRenderer() const {
     return m_Renderer.get();
 }
 
@@ -82,5 +86,4 @@ void Application::shutdown() {
     }
 }
 
-} // namespace Core
-
+}  // namespace Core

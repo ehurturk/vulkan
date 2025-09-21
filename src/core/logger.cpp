@@ -3,14 +3,15 @@
 #include "platform/platform.hpp"
 #include <format>
 
-void assertion_report_failure(std::string_view expr, std::string_view msg, std::string_view file,
+void assertion_report_failure(std::string_view expr,
+                              std::string_view msg,
+                              std::string_view file,
                               I32 line) {
     Core::Logger::getInstance().log(Core::LogLevel::Fatal,
-                              "Assertion Failure: {}, message: {}, in file: {}, in line: {}", expr,
-                              msg, file, line);
+                                    "Assertion Failure: {}, message: {}, in file: {}, in line: {}",
+                                    expr, msg, file, line);
 }
 namespace Core {
-
 
 B8 Logger::initialize() {
     // TODO: create a log file
@@ -21,7 +22,7 @@ void Logger::shutdown() {
     // TODO: cleanup logging/write queued entries
 }
 
-void Logger::logOutput(LogLevel level, const std::string &message) {
+void Logger::logOutput(LogLevel level, const std::string& message) {
     const size_t levelIndex = static_cast<size_t>(level);
     const bool isError = levelIndex < 2;
 
@@ -30,4 +31,4 @@ void Logger::logOutput(LogLevel level, const std::string &message) {
     Platform::Platform::consoleWrite(output, std::string(s_levelColors[levelIndex]));
 }
 
-} // namespace cc
+}  // namespace Core

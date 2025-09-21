@@ -1,6 +1,6 @@
 IndentWidth: 4
-BasedOnStyle: LLVM
-PointerAlignment: Right
+BasedOnStyle: Chromium
+PointerAlignment: Left
 DerivePointerAlignment: false
 ColumnLimit: 100
 SortIncludes: false

@@ -8,14 +8,14 @@
 namespace Renderer {
 
 class VulkanRenderer final : public IRendererBackend {
-  public:
+   public:
     VulkanRenderer();
     ~VulkanRenderer() override;
 
-    void initialize(const RendererConfig &cfg) override;
+    void initialize(const RendererConfig& cfg) override;
     void shutdown() override;
 
-  private:
+   private:
     struct VkState {
         VkInstance instance = VK_NULL_HANDLE;
         VkDebugUtilsMessengerEXT debugMessenger = VK_NULL_HANDLE;
@@ -28,4 +28,4 @@ class VulkanRenderer final : public IRendererBackend {
 
     std::unique_ptr<VkState> m_vkState;
 };
-} // namespace Renderer
+}  // namespace Renderer

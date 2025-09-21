@@ -16,19 +16,19 @@ struct ApplicationConfig {
 };
 
 class Application {
-  public:
-    API static Application &getInstance();
+   public:
+    API static Application& getInstance();
 
-    API B8 create(const ApplicationConfig &config);
+    API B8 create(const ApplicationConfig& config);
     API B8 run();
     API void shutdown();
 
-    [[nodiscard]] Renderer::Renderer *getRenderer() const;
+    [[nodiscard]] Renderer::Renderer* getRenderer() const;
 
-    Application(const Application &) = delete;
-    Application &operator=(const Application &) = delete;
+    Application(const Application&) = delete;
+    Application& operator=(const Application&) = delete;
 
-  private:
+   private:
     Application();
     ~Application() = default;
 
@@ -44,4 +44,4 @@ class Application {
     AppSpec m_Spec;
 };
 
-} // namespace Core
+}  // namespace Core
