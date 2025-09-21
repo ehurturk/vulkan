@@ -33,5 +33,9 @@ constexpr bool IsPowerOfTwo(const uintptr_t x) {
     return (x & (x - 1)) == 0;
 }
 
+constexpr size_t RoundToAlignment(size_t bytes, size_t align) {
+    return ((bytes + align - 1) / align) * align;
+}
+
 };  // namespace MemoryUtil
 };  // namespace Core

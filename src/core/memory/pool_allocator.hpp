@@ -1,24 +1,19 @@
 #pragma once
 
-#include <atomic>
 #include <memory>
 #include <type_traits>
 #include <new>
 #include <cstddef>
 
+#include "align_utils.hpp"
 #include "core/assert.hpp"
 #include "core/logger.hpp"
 
-namespace Core {
+namespace Core::Allocator {
 
-template <typename T, size_t Alignment = alignof(T)>
+template <typename T>
 class PoolAllocator {
-    SASSERT_MSG(1, "Block size must be greater than 0");
-    SASSERT_MSG(Alignment >= alignof(T), "Alignment must be at least alignof(T)");
-    SASSERT_MSG((Alignment & (Alignment - 1)) == 0, "Alignment must be power of 2");
-
    public:
-    // STL compatibility
     using value_type = T;
     using pointer = T*;
     using const_pointer = const T*;
@@ -29,137 +24,198 @@ class PoolAllocator {
 
     template <typename U>
     struct rebind {
-        using other = PoolAllocator<U, Alignment>;
+        using other = PoolAllocator<U>;
     };
 
-    explicit PoolAllocator(U64 noOfElements) : m_NoElements(noOfElements) {
-        size_t bytes = m_NoElements * sizeof(Node);
-        bytes = ((bytes + Alignment - 1) / Alignment) * Alignment;
-        void* raw = std::aligned_alloc(Alignment, bytes);
-        if (!raw) {
-            LOG_FATAL("[PoolAllocator]: Bad allocation!");
-            ASSERT(false);
-            return;
-        }
-        m_Nodes = static_cast<Node*>(raw);
+    explicit PoolAllocator(const std::size_t blocks) : m_Capacity(blocks) {
+        ASSERT_MSG(blocks > 0, "[PoolAllocator]: Pool capacity must be greater than zero.");
 
-        for (uint i = 0; i < m_NoElements - 1; ++i) {
-            // initialize the list
-            m_Nodes[i].next = &m_Nodes[i + 1];
-        }
+        std::size_t total_bytes = m_Capacity * BlockSize;
+        total_bytes = Core::MemoryUtil::RoundToAlignment(total_bytes, Alignment);
+        m_Buffer = static_cast<std::byte*>(
+            ::operator new(total_bytes, static_cast<std::align_val_t>(Alignment)));
 
-        m_Nodes[m_NoElements - 1].next = nullptr;
-        m_freeList.store(&m_Nodes[0]);
+        m_FreeHead = nullptr;
+        for (std::size_t i = 0; i < m_Capacity; ++i) {
+            auto* current_block = reinterpret_cast<Node*>(m_Buffer + i * BlockSize);
+            current_block->next = m_FreeHead;
+            m_FreeHead = current_block;
+        }
     }
 
-    ~PoolAllocator() { std::free(m_Nodes); }
-
-    // delete copy operations
     PoolAllocator(const PoolAllocator&) = delete;
     PoolAllocator& operator=(const PoolAllocator&) = delete;
+    PoolAllocator(PoolAllocator&&) = delete;
+    PoolAllocator& operator=(PoolAllocator&&) = delete;
 
-    // delete move constructor for now
-    // TODO: look into allowing move since there is m_Nodes as ptr,
-    // but afaik atomics don't have move ctor defined.
-    PoolAllocator(PoolAllocator&&) noexcept = delete;
-    PoolAllocator& operator=(PoolAllocator&&) noexcept = delete;
-
-    [[nodiscard]] T* allocate() {
-        Node* node = popFreeNode();
-
-        if (!node) {
-            LOG_FATAL("[PoolAllocator]: Bad alloc!");
-
-            ASSERT(false);
-            return nullptr;
-        }
-
-        return reinterpret_cast<T*>(node);
+    ~PoolAllocator() {
+        ::operator delete(m_Buffer, static_cast<std::align_val_t>(Alignment));
+        m_Buffer = nullptr;
+        m_FreeHead = nullptr;
     }
 
-    void deallocate(T* ptr) noexcept {
-        if (!ptr)
+    [[nodiscard]] T* allocate() {
+        if (!m_FreeHead) {
+            throw std::bad_alloc();
+        }
+
+        Node* n = m_FreeHead;
+        m_FreeHead = n->next;
+        ++m_InUse;
+
+        return reinterpret_cast<T*>(n);
+    }
+    void deallocate(T* p) noexcept {
+        if (!p) {
             return;
+        }
 
-        ASSERT_MSG(owns(ptr), "[PoolAllocator]:Pointer not owned by this allocator");
-
-        Node* node = reinterpret_cast<Node*>(ptr);
-        pushFreeNode(node);
+        auto* n = reinterpret_cast<Node*>(p);
+        n->next = m_FreeHead;
+        m_FreeHead = n;
+        --m_InUse;
     }
 
     template <typename... Args>
-    void construct(T* ptr, Args&&... args) {
+    [[nodiscard]] T* create(Args&&... args) {
+        T* p = allocate();
+        try {
+            new (p) T(std::forward<Args>(args)...);
+        } catch (...) {
+            deallocate(p);
+            throw;
+        }
+        return p;
+    }
+
+    template <typename... Args>
+    void construct(T* ptr, Args&&... args) noexcept {
         new (ptr) T(std::forward<Args>(args)...);
     }
 
-    void destroy(T* ptr) noexcept {
-        if constexpr (!std::is_trivially_destructible_v<T>) {
-            ptr->~T();
+    void destroy(T* p) noexcept {
+        if (!p) {
+            return;
         }
+        p->~T();
+        deallocate(p);
     }
 
-    [[nodiscard]] bool owns(const T* ptr) const noexcept {
-        if (!ptr)
-            return false;
-
-        const Node* node = reinterpret_cast<const Node*>(ptr);
-        return node >= m_Nodes && node < m_Nodes + m_NoElements;
-    }
-
-    // WARNING: does not call destructors
-    // see destroy() to call destructors
-    void reset() noexcept {
-        for (size_t i = 0; i < m_NoElements - 1; ++i) {
-            m_Nodes[i].next = &m_Nodes[i + 1];
-        }
-
-        m_Nodes[m_NoElements - 1].next = nullptr;
-
-        m_freeList.store(&m_Nodes[0], std::memory_order_release);
-    }
-
-    void clear() { m_freeList.store(nullptr, std::memory_order_release); }
-
-    bool operator==(const PoolAllocator& other) const noexcept { return this == &other; }
-    bool operator!=(const PoolAllocator& other) const noexcept { return !(this == &other); }
+    std::size_t capacity() const noexcept { return m_Capacity; }
+    std::size_t in_use() const noexcept { return m_InUse; }
+    std::size_t free_blocks() const noexcept { return m_Capacity - m_InUse; }
 
    private:
-    union Node {
+    struct Node {
         Node* next;
-        alignas(Alignment) std::byte data[sizeof(T)];  // in place of std::aligned_storage
     };
 
-    U32 m_NoElements;
-    Node* m_Nodes;
-    std::atomic<Node*> m_freeList{nullptr};
+    static constexpr size_t BlockSize = sizeof(T) > sizeof(Node) ? sizeof(T) : sizeof(Node);
+    static constexpr size_t Alignment = alignof(T);
 
-    Node* popFreeNode() noexcept {
-        Node* head = m_freeList.load(std::memory_order_acquire);
+    SASSERT_MSG(Core::MemoryUtil::IsPowerOfTwo(Alignment),
+                "[PoolAllocator]: Alignment must be power of 2");
 
-        while (head) {
-            Node* next = head->next;
-            if (m_freeList.compare_exchange_weak(head, next, std::memory_order_release,
-                                                 std::memory_order_acquire)) {
-                return head;
-            }
-        }
-
-        return nullptr;
-    }
-
-    void pushFreeNode(Node* node) noexcept {
-        Node* head = m_freeList.load(std::memory_order_acquire);
-
-        do {
-            node->next = head;
-        } while (!m_freeList.compare_exchange_weak(head, node, std::memory_order_release,
-                                                   std::memory_order_acquire));
-    }
+    std::size_t m_Capacity;
+    std::byte* m_Buffer{};
+    Node* m_FreeHead{};
+    std::size_t m_InUse{0};
 };
 
-template <typename T, size_t Alignment = alignof(T)>
-std::unique_ptr<PoolAllocator<T, Alignment>> makePoolAllocator(U32 noelements) {
-    return std::make_unique<PoolAllocator<T, Alignment>>(noelements);
-}
+class FixedPoolAllocator {
+   public:
+    FixedPoolAllocator(const std::size_t block_size,
+                       const std::size_t block_align,
+                       const std::size_t blocks)
+        : m_BlockSize(round_up(block_size, block_align)),
+          m_BlockAlign(block_align),
+          m_Capacity(blocks) {
+        ASSERT_MSG(m_BlockAlign && (m_BlockAlign & (m_BlockAlign - 1)) == 0,
+                   "[FixedPoolAllocator]: Alignment must be power of two");
+        const std::size_t bytes = round_up(m_BlockSize * m_Capacity, m_BlockAlign);
 
-}  // namespace Core
+        m_Base = static_cast<std::byte*>(
+            ::operator new(bytes, static_cast<std::align_val_t>(m_BlockAlign)));
+        m_End = m_Base + bytes;
+
+        m_Free = nullptr;
+        for (std::size_t i = 0; i < m_Capacity; ++i) {
+            auto* n = reinterpret_cast<Node*>(m_Base + i * m_BlockSize);
+            n->next = m_Free;
+            m_Free = n;
+        }
+    }
+
+    FixedPoolAllocator(const FixedPoolAllocator&) = delete;
+    FixedPoolAllocator& operator=(const FixedPoolAllocator&) = delete;
+
+    ~FixedPoolAllocator() {
+        ::operator delete(m_Base, static_cast<std::align_val_t>(m_BlockAlign));
+        m_Base = m_End = nullptr;
+        m_Free = nullptr;
+    }
+
+    [[nodiscard]] void* allocate_block() {
+        if (!m_Free) {
+            LOG_FATAL("[FixedPoolAllocator]: Out of pool memory!");
+            throw std::bad_alloc();
+        }
+
+        return allocate();
+    }
+
+    [[nodiscard]] void* try_allocate_block() noexcept {
+        if (!m_Free) {
+            LOG_FATAL("[FixedPoolAllocator]: Out of pool memory!");
+            return nullptr;
+        }
+
+        return allocate();
+    }
+
+    void deallocate_block(void* p) noexcept {
+        if (!p)
+            return;
+        auto* n = static_cast<Node*>(p);
+        n->next = m_Free;
+        m_Free = n;
+        --m_InUse;
+    }
+
+    bool owns(const void* p) const noexcept {
+        auto* b = static_cast<const std::byte*>(p);
+        return b >= m_Base && b < m_End;
+    }
+
+    std::size_t block_size() const noexcept { return m_BlockSize; }
+    std::size_t block_align() const noexcept { return m_BlockAlign; }
+    std::size_t capacity() const noexcept { return m_Capacity; }
+    std::size_t in_use() const noexcept { return m_InUse; }
+    std::size_t free_blocks() const noexcept { return m_Capacity - m_InUse; }
+
+   private:
+    struct Node {
+        Node* next;
+    };
+
+    [[nodiscard]] void* allocate() noexcept {
+        Node* n = m_Free;
+        m_Free = n->next;
+        ++m_InUse;
+        return n;
+    }
+
+    static std::size_t round_up(std::size_t n, std::size_t a) { return (n + a - 1) / a * a; }
+
+    std::size_t m_BlockSize;
+    std::size_t m_BlockAlign;
+    std::size_t m_Capacity;
+
+    std::byte* m_Base{};
+    std::byte* m_End{};
+
+    Node* m_Free{};
+    std::size_t m_InUse{0};
+};
+
+}  // namespace Core::Allocator
