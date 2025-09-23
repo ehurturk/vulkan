@@ -14,19 +14,6 @@ namespace Core::Allocator {
 template <typename T>
 class PoolAllocator {
    public:
-    using value_type = T;
-    using pointer = T*;
-    using const_pointer = const T*;
-    using reference = T&;
-    using const_reference = const T&;
-    using size_type = size_t;
-    using difference_type = std::ptrdiff_t;
-
-    template <typename U>
-    struct rebind {
-        using other = PoolAllocator<U>;
-    };
-
     explicit PoolAllocator(const std::size_t blocks) : m_Capacity(blocks) {
         ASSERT_MSG(blocks > 0, "[PoolAllocator]: Pool capacity must be greater than zero.");
 
@@ -74,6 +61,7 @@ class PoolAllocator {
         n->next = m_FreeHead;
         m_FreeHead = n;
         --m_InUse;
+        std::allocator
     }
 
     template <typename... Args>
@@ -127,12 +115,13 @@ class FixedPoolAllocator {
     FixedPoolAllocator(const std::size_t block_size,
                        const std::size_t block_align,
                        const std::size_t blocks)
-        : m_BlockSize(round_up(block_size, block_align)),
+        : m_BlockSize(MemoryUtil::RoundToAlignment(block_size, block_align)),
           m_BlockAlign(block_align),
           m_Capacity(blocks) {
         ASSERT_MSG(m_BlockAlign && (m_BlockAlign & (m_BlockAlign - 1)) == 0,
                    "[FixedPoolAllocator]: Alignment must be power of two");
-        const std::size_t bytes = round_up(m_BlockSize * m_Capacity, m_BlockAlign);
+        const std::size_t bytes =
+            MemoryUtil::RoundToAlignment(m_BlockSize * m_Capacity, m_BlockAlign);
 
         m_Base = static_cast<std::byte*>(
             ::operator new(bytes, static_cast<std::align_val_t>(m_BlockAlign)));
@@ -204,8 +193,6 @@ class FixedPoolAllocator {
         ++m_InUse;
         return n;
     }
-
-    static std::size_t round_up(std::size_t n, std::size_t a) { return (n + a - 1) / a * a; }
 
     std::size_t m_BlockSize;
     std::size_t m_BlockAlign;

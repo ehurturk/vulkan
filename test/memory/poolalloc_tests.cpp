@@ -12,6 +12,7 @@
 
 #include "core/stl/DestackMemoryResource.hpp"
 #include "core/stl/MultipoolMemoryResource.hpp"
+#include "core/stl/PoolAdapter.hpp"
 
 using namespace Core::Allocator;
 using namespace Core::MemoryResource;
@@ -86,18 +87,19 @@ TEST(FixedPoolAllocator, AlignmentHonored) {
 // ============================================================================
 namespace {
 template <class U>
-struct PoolAdapter {
+struct FixedPoolAdapter {
     using value_type = U;
     FixedPoolAllocator* pool = nullptr;
 
-    PoolAdapter() = default;
-    explicit PoolAdapter(FixedPoolAllocator& p) : pool(&p) {}
+    FixedPoolAdapter() = default;
+    explicit FixedPoolAdapter(FixedPoolAllocator& p) : pool(&p) {}
 
     template <class V>
-    PoolAdapter(const PoolAdapter<V>& o) noexcept : pool(o.pool) {}
+    FixedPoolAdapter(const FixedPoolAdapter<V>& o) noexcept : pool(o.pool) {}
 
     U* allocate(std::size_t n) {
         // Node containers allocate one object at a time
+        LOG_INFO("Allocating {} bytes", n);
         if (n != 1)
             throw std::bad_alloc();
         void* p = pool->allocate_block();
@@ -110,11 +112,11 @@ struct PoolAdapter {
 
     template <class V>
     struct rebind {
-        using other = PoolAdapter<V>;
+        using other = FixedPoolAdapter<V>;
     };
 
-    bool operator==(const PoolAdapter& rhs) const noexcept { return pool == rhs.pool; }
-    bool operator!=(const PoolAdapter& rhs) const noexcept { return !(*this == rhs); }
+    bool operator==(const FixedPoolAdapter& rhs) const noexcept { return pool == rhs.pool; }
+    bool operator!=(const FixedPoolAdapter& rhs) const noexcept { return !(*this == rhs); }
 };
 }  // namespace
 
@@ -123,7 +125,7 @@ TEST(FixedPoolAllocator_STL, StdListUsesPool) {
                             /*blocks=*/1024);
 
     using T = int;
-    using Alloc = PoolAdapter<T>;
+    using Alloc = FixedPoolAdapter<T>;
     std::list<T, Alloc> lst{Alloc(pool)};
 
     const std::size_t before_in_use = pool.in_use();

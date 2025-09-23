@@ -1,14 +1,15 @@
 find_package(Vulkan REQUIRED)
 find_package(glfw3 REQUIRED)
 
-add_library(engine STATIC ${ENGINE_SOURCES}
-        core/stl/MultipoolMemoryResource.hpp)
+add_library(engine STATIC ${ENGINE_SOURCES})
 
 target_sources(engine
         PRIVATE
         # Core files
         core/logger.cpp
         core/application.cpp
+
+        core/concurrency/job_system.cpp
 
         # Platform files
         platform/platform.cpp
@@ -34,13 +35,17 @@ set(ENGINE_HEADERS
         core/memory/stack_allocator.hpp
         core/memory/double_buffered_allocator.hpp
         core/memory/pool_allocator.hpp
-        core/memory/scratch_allocator.hpp
         core/memory/memory.hpp
         core/memory/align_utils.hpp
+        core/memory/allocator_base.hpp
 
+        core/stl/MultipoolMemoryResource.hpp
+        core/stl/PoolAdapter.hpp
         core/stl/FixedPoolResource.hpp
         core/stl/StackMemoryResource.hpp
         core/stl/DestackMemoryResource.hpp
+
+        core/concurrency/job_system.hpp
 
         types/game_types.hpp
 
