@@ -13,7 +13,7 @@ class StackMemoryResource : public std::pmr::memory_resource {
     StackAllocator& m_Allocator;
 
     void* do_allocate(size_t bytes, size_t alignment) override {
-        return m_Allocator.alloc(static_cast<U32>(bytes), static_cast<U32>(alignment));
+        return m_Allocator.allocate(static_cast<U32>(bytes), static_cast<U32>(alignment));
     }
 
     void do_deallocate(void* p, size_t bytes, size_t alignment) override {

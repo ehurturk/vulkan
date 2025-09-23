@@ -22,7 +22,7 @@ class StackAllocator {
             free(m_Buffer);
     }
 
-    [[nodiscard]] void* alloc(U32 size, U32 alignment = 16) {
+    [[nodiscard]] void* allocate(U32 size, U32 alignment = 16) {
         U32 topAligned = MemoryUtil::AlignTo<U32>(m_Top, alignment);
         if (topAligned + size > m_Size) {
             LOG_FATAL("[StackAllocator]: Out of pool memory!");

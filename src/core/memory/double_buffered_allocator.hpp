@@ -12,7 +12,7 @@ class DoubleBufferedAllocator {
 
     void clear_current_buffer() { m_Stack[m_CurStack].clear(); }
 
-    void* alloc(size_t bytes) { return m_Stack[m_CurStack].alloc(bytes); }
+    void* alloc(size_t bytes) { return m_Stack[m_CurStack].allocate(bytes); }
 
    private:
     U8 m_CurStack;

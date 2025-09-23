@@ -14,27 +14,27 @@ class StackAllocatorTest : public ::testing::Test {
 
 TEST_F(StackAllocatorTest, HandlesBasicAllocation) {
     ASSERT_EQ(allocator.getUsedBytes(), 0);
-    void* p1 = allocator.alloc(100);
+    void* p1 = allocator.allocate(100);
     ASSERT_NE(p1, nullptr);
     ASSERT_GE(allocator.getUsedBytes(), 100);
 }
 
 TEST_F(StackAllocatorTest, RespectsAlignment) {
-    void* p1 = allocator.alloc(1, 16);
+    void* p1 = allocator.allocate(1, 16);
     ASSERT_TRUE(Core::MemoryUtil::IsAligned(p1, 16));
 
-    void* p2 = allocator.alloc(1, 32);
+    void* p2 = allocator.allocate(1, 32);
     ASSERT_TRUE(Core::MemoryUtil::IsAligned(p2, 32));
 
-    void* p3 = allocator.alloc(1, 64);
+    void* p3 = allocator.allocate(1, 64);
     ASSERT_TRUE(Core::MemoryUtil::IsAligned(p3, 64));
 }
 
 TEST_F(StackAllocatorTest, FreeToMarkerResetsState) {
     auto initial_marker = allocator.getMarker();
-    void* a = allocator.alloc(50);
+    void* a = allocator.allocate(50);
     auto marker_after_50 = allocator.getMarker();
-    void* b = allocator.alloc(100);
+    void* b = allocator.allocate(100);
 
     allocator.freeTo(marker_after_50);
     ASSERT_EQ(allocator.getMarker(), marker_after_50);
@@ -44,12 +44,12 @@ TEST_F(StackAllocatorTest, FreeToMarkerResetsState) {
 }
 
 TEST_F(StackAllocatorTest, ThrowsExceptionWhenFull) {
-    void* c = allocator.alloc(1000);
-    ASSERT_THROW(allocator.alloc(100), std::bad_alloc);
+    void* c = allocator.allocate(1000);
+    ASSERT_THROW(allocator.allocate(100), std::bad_alloc);
 }
 
 TEST_F(StackAllocatorTest, ClearResetsAllocator) {
-    void* d = allocator.alloc(200);
+    void* d = allocator.allocate(200);
     allocator.clear();
     ASSERT_EQ(allocator.getUsedBytes(), 0);
 }

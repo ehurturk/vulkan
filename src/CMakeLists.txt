@@ -46,6 +46,7 @@ set(ENGINE_HEADERS
         core/stl/DestackMemoryResource.hpp
 
         core/concurrency/job_system.hpp
+        core/concurrency/counter_pool.hpp
 
         types/game_types.hpp
 

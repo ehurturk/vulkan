@@ -24,7 +24,6 @@
 2) Allocators:
 
 - [ ] PoolAllocator & PoolAdapter -> `std::list` compatibility??
-- [ ] Implement ScratchAllocator/Double Buffered Allocator
 - [ ] Create the `Allocator` superclass, make other allocators implement it. The `Allocator` superclass defaults to
   standard allocator `std::allocator`.
 - [ ] Is `MemoryAllocator` a singleton?
