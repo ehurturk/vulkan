@@ -16,7 +16,7 @@ class CounterPool {
         }
     }
 
-    JobSystem::JobCounter* allocate(const std::string& debugName = "") {
+    JobPool::JobCounter* allocate(const std::string& debugName = "") {
         std::scoped_lock lock{m_Mutex};
 
         Counter* wrapper = nullptr;
@@ -41,7 +41,7 @@ class CounterPool {
         return &wrapper->counter;
     }
 
-    void free(JobSystem::JobCounter* counter) {
+    void free(JobPool::JobCounter* counter) {
         if (!counter)
             return;
 
@@ -79,7 +79,7 @@ class CounterPool {
 
    private:
     struct Counter {
-        JobSystem::JobCounter counter{0};
+        JobPool::JobCounter counter{0};
         bool inUse{false};
 
 #ifdef BUILD_DEBUG

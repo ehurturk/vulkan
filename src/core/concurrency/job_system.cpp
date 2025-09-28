@@ -5,16 +5,16 @@
 
 namespace Core {
 
-JobSystem::JobSystem() {
+JobPool::JobPool() {
     unsigned cores = std::thread::hardware_concurrency();
-    LOG_INFO("[JobSystem]: Initializing with {} threads", cores);
+    LOG_INFO("[JobPool]: Initializing with {} threads", cores);
 
     for (uint i = 0; i < cores; i++) {
         m_Threads.emplace_back([this]() { workerThreadLoop(); });
     }
 }
 
-JobSystem::~JobSystem() {
+JobPool::~JobPool() {
     m_ShouldTerminate.store(true, std::memory_order_relaxed);
     m_Cond.notify_all();
     for (auto& t : m_Threads) {
@@ -22,7 +22,7 @@ JobSystem::~JobSystem() {
     }
 }
 
-void JobSystem::kickJob(JobDeclaration& decl) {
+void JobPool::kickJob(JobDeclaration& decl) {
     if (decl.counter) {
         decl.counter->fetch_add(1, std::memory_order_acq_rel);
     }
@@ -31,7 +31,7 @@ void JobSystem::kickJob(JobDeclaration& decl) {
     m_Cond.notify_one();
 }
 
-void JobSystem::kickJobs(std::span<JobDeclaration> jobs) {
+void JobPool::kickJobs(std::span<JobDeclaration> jobs) {
     {
         std::scoped_lock lock{m_QueueMutex};
         for (auto& job : jobs) {
@@ -42,11 +42,11 @@ void JobSystem::kickJobs(std::span<JobDeclaration> jobs) {
     m_Cond.notify_all();
 }
 
-void JobSystem::kickJobAndWait(const JobDeclaration& decl) {
+void JobPool::kickJobAndWait(const JobDeclaration& decl) {
     // TODO
 }
 
-void JobSystem::kickJobsAndWait(std::span<JobDeclaration> jobs) {
+void JobPool::kickJobsAndWait(std::span<JobDeclaration> jobs) {
     // kick jobs with the same counter
     JobCounter ctr{static_cast<int>(jobs.size())};
     {
@@ -62,7 +62,7 @@ void JobSystem::kickJobsAndWait(std::span<JobDeclaration> jobs) {
     waitForCounter(&ctr);
 }
 
-void JobSystem::waitForCounter(JobCounter* counter) {
+void JobPool::waitForCounter(JobCounter* counter) {
     if (!counter) {
         return;
     }
@@ -74,9 +74,9 @@ void JobSystem::waitForCounter(JobCounter* counter) {
     }
 }
 
-void JobSystem::workerThreadLoop() {
+void JobPool::workerThreadLoop() {
     while (true) {
-        JobSystem::JobDeclaration decl;
+        JobPool::JobDeclaration decl;
         {
             std::unique_lock lock(m_QueueMutex);
             m_Cond.wait(lock, [this]() {
@@ -100,19 +100,19 @@ void JobSystem::workerThreadLoop() {
 }
 
 template <typename F>
-void JobSystem::JobEntryPointWrapper(uintptr_t param) {
+void JobPool::JobEntryPointWrapper(uintptr_t param) {
     F* lambdaptr = reinterpret_cast<F*>(param);
     try {
         (*lambdaptr)();
     } catch (...) {
-        LOG_FATAL("[JobSystem]: Exception occured in job!");
+        LOG_FATAL("[JobPool]: Exception occured in job!");
     }
 
     delete lambdaptr;
 }
 
-bool JobSystem::runSingleJob() {
-    JobSystem::JobDeclaration decl;
+bool JobPool::runSingleJob() {
+    JobPool::JobDeclaration decl;
 
     {
         std::scoped_lock lock{m_QueueMutex};

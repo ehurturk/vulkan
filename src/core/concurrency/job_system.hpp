@@ -11,7 +11,7 @@
 #include <atomic>
 
 namespace Core {
-class JobSystem {
+class JobPool {
    public:
     using JobEntryPoint = std::function<void(uintptr_t)>;
     using JobCounter = std::atomic<int>;
@@ -31,8 +31,8 @@ class JobSystem {
         }
     };
 
-    JobSystem();
-    ~JobSystem();
+    JobPool();
+    ~JobPool();
 
     template <typename F>
     void kickJob(F&& job_func, JobCounter* ctr = nullptr, Priority p = Priority::NORMAL) {

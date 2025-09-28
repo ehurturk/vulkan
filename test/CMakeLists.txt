@@ -12,6 +12,7 @@ add_executable(run_tests
         memory/stackalloc_tests.cpp
         memory/destackalloc_tests.cpp
         memory/poolalloc_tests.cpp
+        concurrency/threadpool_tests.cpp
 )
 
 target_link_libraries(run_tests

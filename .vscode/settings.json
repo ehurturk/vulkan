@@ -9,5 +9,5 @@
         "window.h": "c",
         "locale": "c"
     },
-    "cmake.buildDirectory": "${workspaceFolder}/cmake-build-debug"
+    "cmake.buildDirectory": "${workspaceFolder}/out/${buildType}"
 }
