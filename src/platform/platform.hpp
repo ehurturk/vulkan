@@ -1,32 +1,95 @@
 #pragma once
 
-#include "../defines.hpp"
 #include <memory>
-#include <string_view>
+#include <string>
+#include <vector>
+
+#include "core/PlatformContext.hpp"
+#include "core/timer.hpp"
+#include "core/application.hpp"
+#include "platform/layer/layer.hpp"
+#include "window.hpp"
 
 namespace Platform {
 
+class InputEvent;
+
+enum class ExitCode {
+    Success = 0, /* App executed as expected */
+    Help,        /* App should show help */
+    Close,       /* App has been requested to close at initialization */
+    FatalError   /* App encountered an unexpected error */
+};
+
 class Platform {
    public:
-    struct State {
-        std::unique_ptr<void, void (*)(void*)> internalState{nullptr, [](void*) {}};
-    };
+    Platform(const PlatformContext& context);
 
-    API static B8 startup(State& state, std::string_view name, I32 width, I32 height);
-    API static void shutdown(State& state);
-    API static B8 dispatchMessages(State& state);
-    API static B8 shouldRun(State& state);
+    virtual ~Platform() = default;
 
-    static void consoleWrite(std::string_view msg, std::string_view color);
+    virtual ExitCode initialize(const std::vector<Layer*>& layers);
 
-    static void* allocate(U64 size, B8 aligned);
-    static void free(void* block, B8 aligned);
-    static void* zeroMemory(void* block, U64 size);
-    static void* copyMemory(void* dest, const void* source, U64 size);
-    static void* setMemory(void* dest, I32 value, U64 size);
+    ExitCode mainLoop();
+    ExitCode mainLoopFrame();
 
-    static F64 getAbsoluteTime();
-    static void sleep(U64 ms);
+    void update();
+
+    virtual void terminate(ExitCode code);
+    virtual void close();
+    virtual void resize(uint32_t width, uint32_t height);
+    virtual void inputEvent(const InputEvent& input_event);
+
+    Window& getWindow();
+
+    Core::Application& getApp() const;
+    Core::Application& getApp();
+
+    void setFocus(bool focused);
+    bool startApp();
+    void forceSimulationFPS(float fps);
+
+    // force the application to always render even if it is not in focus
+    void forceRender(bool should_always_render);
+
+    void disableInputProc();
+
+    void setWindowProperties(const Window::OptionalProperties& properties);
+
+    static const uint32_t MIN_WINDOW_WIDTH;
+    static const uint32_t MIN_WINDOW_HEIGHT;
+
+   protected:
+    std::vector<Layer*> m_ActiveLayers;
+    std::unordered_map<Hook, std::vector<Layer*>> m_Hooks;
+
+    std::unique_ptr<Window> m_Window{nullptr};
+
+    std::unique_ptr<Core::Application> m_App{nullptr};
+
+    virtual void createWindow(const Window::Properties& properties) = 0;
+
+    void registerHooks(Layer* layer);
+
+    void onUpdate(float delta_time);
+    void onAppError(const std::string& app_id);
+    void onAppStart(const std::string& app_id);
+    void onAppClose(const std::string& app_id);
+    void onPlatformClose();
+    void onUpdateUIOverlay();
+
+    Window::Properties m_WindowProperties;
+
+    bool m_FixedSimFps{false};      // Delta time should be fixed with a fabricated value
+    bool m_AlwaysRender{false};     // App should always render even if not in focus
+    float m_SimFrameTime = 0.016f;  // A fabricated delta time
+    bool m_ProcInputEvents{true};   // App should continue processing input events
+    bool m_Focused{true};           // App is currently in focus at an operating system level
+    bool m_Close{false};            // Close requested
+
+    std::vector<Layer*> m_Plugins;
+
+   private:
+    Core::Timer m_Timer;
 };
 
 }  // namespace Platform

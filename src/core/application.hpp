@@ -1,47 +1,57 @@
 #pragma once
 
+#include <string>
 #include "defines.hpp"
 #include "renderer/backend/renderer.hpp"
-#include "platform/platform.hpp"
-#include <memory>
-#include <string>
 
+namespace Platform {
+class Window;
+};
 namespace Core {
+class InputEvent;
 
-struct ApplicationConfig {
-    I32 width;
-    I32 height;
-    std::string name;
-    Renderer::RendererBackendType backend;
+struct ApplicationOptions {
+    bool benchmark_enabled{false};
+    Platform::Window* window{nullptr};
 };
 
 class Application {
    public:
-    API static Application& getInstance();
+    Application();
 
-    API B8 create(const ApplicationConfig& config);
-    API B8 run();
-    API void shutdown();
+    virtual ~Application() = default;
 
-    [[nodiscard]] Renderer::Renderer* getRenderer() const;
+    virtual bool prepare(const ApplicationOptions& options);
 
-    Application(const Application&) = delete;
-    Application& operator=(const Application&) = delete;
+    virtual void update(float dt);  // dt in seconds
+    virtual void finish();
+
+    virtual bool resize(const uint32_t width, const uint32_t height);
+
+    virtual void inputEvent(const InputEvent& input_event);
+
+    virtual Renderer::Renderer* getRenderer();
+
+    const std::string& getName() const;
+    void setName(const std::string& name);
+
+    inline bool shouldClose() const { return m_ReqClose; }
+    inline void requestClose() { m_ReqClose = true; }
+
+   protected:
+    float m_Fps{0.0f};
+    float m_FrameTime{0.0f};  // ms
+
+    U32 m_FrameCount{0};
+    U32 m_LastFrameCount{0};
+
+    bool m_LockSimSpeed{false};
+
+    Platform::Window* m_Window{nullptr};
 
    private:
-    Application();
-    ~Application() = default;
+    std::string m_Name{};
 
-    struct AppSpec {
-        B8 initialized = false;
-        B8 running = false;
-        B8 suspended = false;
-    };
-
-    std::unique_ptr<Renderer::Renderer> m_Renderer;
-    ApplicationConfig m_AppCfg;
-    Platform::Platform::State m_PlatformState;
-    AppSpec m_Spec;
+    bool m_ReqClose{false};
 };
-
 }  // namespace Core

@@ -1,89 +1,43 @@
 #include "application.hpp"
-#include "core/logger.hpp"
-#include "platform/platform.hpp"
+#include "core/assert.hpp"
 #include "renderer/backend/renderer.hpp"
-#include <memory>
 
 namespace Core {
-Application::Application()
-    :
-#ifdef BUILD_DEBUG
-      m_Renderer(std::make_unique<Renderer::Renderer>(
-          (Renderer::RendererConfig){.backend = Renderer::RendererBackendType::Vulkan,
-                                     .enableValidation = true})),
-#elif BUILD_RELEASE
-      m_Renderer(std::make_unique<Renderer::Renderer>(
-          (Renderer::RendererConfig){.backend = Renderer::RendererBackendType::Vulkan,
-                                     .enableValidation = false})),
-#endif
-      m_AppCfg({}),
-      m_PlatformState({}) {
-}
 
-Application& Application::getInstance() {
-    static Application instance;
-    return instance;
-}
+Application::Application() : m_Name{"Sample Name"} {}
 
-B8 Application::create(const ApplicationConfig& config) {
-    if (m_Spec.initialized) {
-        LOG_ERROR("Application is already initialized. Can't create more than one application.");
-        return false;
-    }
+bool Application::prepare(const ApplicationOptions& options) {
+    ASSERT_MSG(options.window != nullptr, "[Application]: Window must be present");
 
-    m_AppCfg = config;
-
-    if (!Platform::Platform::startup(m_PlatformState, config.name, config.width, config.height)) {
-        LOG_FATAL("Failed to start platform");
-        return false;
-    }
-
-    m_Renderer->initialize();
-    m_Spec.initialized = true;
-
-    // TODO: Set renderer backend type here instead of ctor
+    m_LockSimSpeed = options.benchmark_enabled;
+    m_Window = options.window;
 
     return true;
 }
 
-B8 Application::run() {
-    if (!m_Spec.initialized) {
-        LOG_ERROR("Application not initialized");
-        return false;
-    }
+void Application::finish() {}
 
-    m_Spec.running = true;
-
-    while (Platform::Platform::shouldRun(m_PlatformState)) {
-        Platform::Platform::dispatchMessages(m_PlatformState);
-        // TODO: update
-        // TODO: render
-        // TODO: swap front & back buffers
-    }
-
-    m_Spec.running = false;
-    Platform::Platform::shutdown(m_PlatformState);
-
+bool Application::resize(const uint32_t, const uint32_t) {
     return true;
 }
 
-Renderer::Renderer* Application::getRenderer() const {
-    return m_Renderer.get();
+void Application::inputEvent(const InputEvent& input_event) {}
+
+Renderer::Renderer* Application::getRenderer() {
+    return nullptr;
 }
 
-void Application::shutdown() {
-    if (m_Spec.initialized) {
-        if (m_Spec.running) {
-            m_Spec.running = false;
-        }
-        if (m_Renderer) {
-            m_Renderer->shutdown();
-            m_Renderer.reset();
-        }
-        Platform::Platform::shutdown(m_PlatformState);
-    } else {
-        LOG_FATAL("SHUTDOWN ERROR: App not initialized!");
-    }
+void Application::update(float delta_time) {
+    m_Fps = 1.0f / delta_time;
+    m_FrameTime = delta_time * 1000.0f;  // in ms
+}
+
+const std::string& Application::getName() const {
+    return m_Name;
+}
+
+void Application::setName(const std::string& name_) {
+    m_Name = name_;
 }
 
 }  // namespace Core
