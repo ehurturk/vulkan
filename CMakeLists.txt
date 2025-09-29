@@ -48,17 +48,17 @@ message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 
 function(setup_platform_definitions target)
     if(PLATFORM_WINDOWS)
-        target_compile_definitions(${target} PRIVATE PLATFORM__WINDOWS=1)
+        target_compile_definitions(${target} PRIVATE __PLATFORM_WINDOWS__=1)
         target_compile_definitions(${target} PRIVATE NOMINMAX)
         target_compile_definitions(${target} PRIVATE WIN32_LEAN_AND_MEAN)
     elseif(PLATFORM_LINUX)
-        target_compile_definitions(${target} PRIVATE PLATFORM__LINUX=1)
+        target_compile_definitions(${target} PRIVATE __PLATFORM_LINUX__=1)
     elseif(PLATFORM_MACOS)
-        target_compile_definitions(${target} PRIVATE PLATFORM__MACOS=1)
+        target_compile_definitions(${target} PRIVATE __PLATFORM_MACOS__=1)
     elseif(PLATFORM_IOS)
-        target_compile_definitions(${target} PRIVATE PLATFORM__IOS=1)
+        target_compile_definitions(${target} PRIVATE __PLATFORM_IOS__=1)
     elseif(PLATFORM_ANDROID)
-        target_compile_definitions(${target} PRIVATE PLATFORM__ANDROID=1)
+        target_compile_definitions(${target} PRIVATE __PLATFORM_ANDROID__=1)
     endif()
     
     if(CMAKE_BUILD_TYPE STREQUAL "Debug")
@@ -90,7 +90,7 @@ function(setup_compiler_settings target)
             -Wextra
             -Wpedantic
             -Werror
-            -Wno-unused-parameter
+            # -Wno-unused-parameter
         )
         
         if(CMAKE_BUILD_TYPE STREQUAL "Debug")

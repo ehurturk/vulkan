@@ -22,7 +22,7 @@ class Platform {
     virtual ~Platform() = default;
 
     ExitCode initialize();
-    ExitCode run(std::unique_ptr<Core::Application> app);
+    ExitCode run(Core::Application* app);
     void terminate();
 
     Window& getWindow();
@@ -43,14 +43,16 @@ class Platform {
     virtual void processEvents();
     virtual void handleInputEvent(const InputEvent& event);
     virtual void handleResize(uint32_t width, uint32_t height);
+    std::unique_ptr<Window> m_Window;
 
    private:
     ExitCode mainLoop();
     void updateFrame();
 
     const PlatformContext& m_Context;
-    std::unique_ptr<Window> m_Window;
-    std::unique_ptr<Core::Application> m_App;
+
+    Core::Application* m_App;
+
     Core::Timer m_Timer;
 
     Window::Properties m_WindowProperties;

@@ -8,6 +8,8 @@ set(ENGINE_CORE_SOURCES
 set(ENGINE_PLATFORM_SOURCES
     platform/platform.cpp
     platform/window.cpp
+    platform/window/glfw_window.cpp
+    platform/window/headless_window.cpp
     
 )
 
@@ -63,9 +65,12 @@ set(ENGINE_CORE_HEADERS
 
 set(ENGINE_PLATFORM_HEADERS
     platform/platform.hpp
+    platform/app_platform.hpp
     platform/window.hpp
     platform/core/PlatformContext.hpp
     platform/core/PlatformEntryPoint.hpp
+    platform/window/glfw_window.hpp
+    platform/window/headless_window.hpp
 )
 
 if(PLATFORM_WINDOWS)
@@ -75,8 +80,6 @@ elseif(PLATFORM_LINUX)
 elseif(PLATFORM_MACOS)
     list(APPEND ENGINE_PLATFORM_HEADERS platform/unix/context.hpp platform/unix/platform.cpp)
 endif()
-
-
 
 set(ENGINE_RENDERER_HEADERS
     renderer/backend/renderer.hpp

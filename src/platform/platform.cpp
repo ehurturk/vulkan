@@ -7,6 +7,7 @@
 namespace Platform {
 
 Platform::Platform(const PlatformContext& context) : m_Context(context) {
+    // TODO: parse this info from context arguments
     m_WindowProperties.title = "Vulkan Game Engine";
     m_WindowProperties.extent = {1280, 720};
     m_WindowProperties.resizable = true;
@@ -27,13 +28,13 @@ ExitCode Platform::initialize() {
     return ExitCode::Success;
 }
 
-ExitCode Platform::run(std::unique_ptr<Core::Application> app) {
+ExitCode Platform::run(Core::Application* app) {
     if (!app) {
         LOG_ERROR("[Platform]:No application provided to run");
         return ExitCode::FatalError;
     }
 
-    m_App = std::move(app);
+    m_App = app;
 
     if (!m_App->initialize(m_Window.get())) {
         LOG_ERROR("[Platform]:Failed to initialize application: {}", m_App->getName());
@@ -88,7 +89,6 @@ void Platform::terminate() {
 
     if (m_App) {
         m_App->cleanup();
-        m_App.reset();
     }
 
     m_Window.reset();

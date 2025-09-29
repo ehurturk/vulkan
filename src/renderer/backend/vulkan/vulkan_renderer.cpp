@@ -73,7 +73,7 @@ void VulkanRenderer::create_instance(bool enableValidation) {
 
     std::vector<const char*> extensions(glfwExts, glfwExts + glfwCount);
 
-#ifdef PLATFORM_APPLE
+#ifdef __PLATFORM_MACOS__
     extensions.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
 #endif
 
@@ -95,7 +95,7 @@ void VulkanRenderer::create_instance(bool enableValidation) {
     ci.enabledLayerCount = static_cast<uint32_t>(layers.size());
     ci.ppEnabledLayerNames = layers.data();
 
-#ifdef PLATFORM_APPLE
+#ifdef __PLATFORM_MACOS__
     ci.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
 #endif
 

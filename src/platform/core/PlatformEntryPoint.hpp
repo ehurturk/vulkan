@@ -2,18 +2,18 @@
 
 #include "PlatformContext.hpp"
 
-#if defined(PLATFORM__MACOS)
+#if defined(__PLATFORM_MACOS__)
 #include <TargetConditionals.h>
 #endif
 
-#if defined(PLATFORM__WINDOWS)
+#if defined(__PLATFORM_WINDOWS__)
 #include <Windows.h>
 extern std::unique_ptr<Platform::PlatformContext> create_platform_context(HINSTANCE hInstance,
                                                                           HINSTANCE hPrevInstance,
                                                                           PSTR lpCmdLine,
                                                                           INT nCmdShow);
 
-#define CREATE_CONTEXT(context_name)                                                           \
+#define ENTRYPOINT(context_name)                                                               \
     int platform_main(const Platform::PlatformContext&);                                       \
     int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PSTR lpCmdLine,         \
                          INT nCmdShow) {                                                       \
@@ -22,10 +22,10 @@ extern std::unique_ptr<Platform::PlatformContext> create_platform_context(HINSTA
     }                                                                                          \
     int platform_main(const Platform::PlatformContext& context_name)
 
-#elif defined(PLATFORM__LINUX) || defined(PLATFORM__MACOS)
+#elif defined(__PLATFORM_LINUX__) || defined(__PLATFORM_MACOS__)
 extern std::unique_ptr<Platform::PlatformContext> create_platform_context(int argc, char** argv);
 
-#define CREATE_CONTEXT(context_name)                        \
+#define ENTRYPOINT(context_name)                            \
     int platform_main(const Platform::PlatformContext&);    \
     int main(int argc, char* argv[]) {                      \
         auto context = create_platform_context(argc, argv); \
@@ -35,7 +35,7 @@ extern std::unique_ptr<Platform::PlatformContext> create_platform_context(int ar
 
 #else
 #include <stdexcept>
-#define CREATE_CONTEXT(context_name)                        \
+#define ENTRYPOINT(context_name)                            \
     int main(int argc, char* argv[]) {                      \
         throw std::runtime_error{"platform not supported"}; \
     }                                                       \
