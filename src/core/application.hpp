@@ -1,57 +1,57 @@
 #pragma once
 
 #include <string>
-#include "defines.hpp"
-#include "renderer/backend/renderer.hpp"
+#include <cstdint>
 
 namespace Platform {
 class Window;
-};
-namespace Core {
 class InputEvent;
+class Platform;
+}  // namespace Platform
 
-struct ApplicationOptions {
-    bool benchmark_enabled{false};
-    Platform::Window* window{nullptr};
-};
+namespace Renderer {
+class Renderer;
+}
+
+namespace Core {
 
 class Application {
    public:
-    Application();
-
+    Application() = default;
     virtual ~Application() = default;
 
-    virtual bool prepare(const ApplicationOptions& options);
+    virtual bool initialize(Platform::Window* window) = 0;
+    virtual void update(float deltaTime) = 0;
+    virtual void render() = 0;
+    virtual void cleanup() = 0;
 
-    virtual void update(float dt);  // dt in seconds
-    virtual void finish();
+    virtual void onResize(uint32_t width, uint32_t height) {}
+    virtual void onInputEvent(const Platform::InputEvent& event) {}
 
-    virtual bool resize(const uint32_t width, const uint32_t height);
+    bool shouldClose() const { return m_ShouldClose; }
+    void requestClose() { m_ShouldClose = true; }
 
-    virtual void inputEvent(const InputEvent& input_event);
+    const std::string& getName() const { return m_Name; }
+    void setName(const std::string& name) { m_Name = name; }
 
-    virtual Renderer::Renderer* getRenderer();
-
-    const std::string& getName() const;
-    void setName(const std::string& name);
-
-    inline bool shouldClose() const { return m_ReqClose; }
-    inline void requestClose() { m_ReqClose = true; }
+    float getFPS() const { return m_FPS; }
+    float getFrameTime() const { return m_FrameTime; }
 
    protected:
-    float m_Fps{0.0f};
-    float m_FrameTime{0.0f};  // ms
-
-    U32 m_FrameCount{0};
-    U32 m_LastFrameCount{0};
-
-    bool m_LockSimSpeed{false};
-
     Platform::Window* m_Window{nullptr};
 
    private:
-    std::string m_Name{};
+    std::string m_Name{"Game Application"};
+    bool m_ShouldClose{false};
 
-    bool m_ReqClose{false};
+    float m_FPS{0.0f};
+    float m_FrameTime{0.0f};
+
+    friend class Platform::Platform;
+    void updatePerformanceStats(float deltaTime) {
+        // delta time in ms
+        m_FPS = 1.0f / deltaTime;
+        m_FrameTime = deltaTime * 1000.0f;  // ms
+    }
 };
 }  // namespace Core

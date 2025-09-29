@@ -42,34 +42,33 @@ class Window {
 
     virtual ~Window() = default;
 
-    virtual VkSurfaceKHR create_surface(VkInstance instance,
-                                        VkPhysicalDevice physical_device = VK_NULL_HANDLE) = 0;
+    virtual VkSurfaceKHR createSurface(VkInstance instance,
+                                       VkPhysicalDevice physical_device = VK_NULL_HANDLE) = 0;
 
-    virtual bool should_close() = 0;
-
-    virtual void process_events();
+    virtual void processEvents();
 
     virtual void close() = 0;
+    virtual bool shouldClose() = 0;
 
-    virtual float get_dpi() const = 0;
+    virtual float getDPI() const = 0;
+    virtual float getContentScaleFactor() const;
 
-    virtual float get_content_scale_factor() const;
+    inline void setTitle(const std::string& title) { m_Properties.title = title; }
+    inline const std::string& getTitle() { return m_Properties.title; }  // TODO: remove ref?
 
     Extent resize(const Extent& extent);
 
-    virtual bool get_display_present_info(VkDisplayPresentInfoKHR* info,
-                                          U32 src_width,
-                                          U32 src_height) const;
+    virtual bool getDisplayPresentInfo(VkDisplayPresentInfoKHR* info,
+                                       U32 src_width,
+                                       U32 src_height) const;
+    virtual std::vector<const char*> getRequiredSurfaceExtensions() const = 0;
 
-    virtual std::vector<const char*> get_required_surface_extensions() const = 0;
+    const Extent& getExtent() const;
+    Mode getWindowMode() const;
 
-    const Extent& get_extent() const;
-
-    Mode get_window_mode() const;
-
-    inline const Properties& get_properties() const { return properties; }
+    inline const Properties& getProperties() const { return m_Properties; }
 
    protected:
-    Properties properties;
+    Properties m_Properties;
 };
 }  // namespace Platform

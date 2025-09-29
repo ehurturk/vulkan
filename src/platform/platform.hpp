@@ -1,95 +1,65 @@
 #pragma once
 
 #include <memory>
-#include <string>
-#include <vector>
 
 #include "core/PlatformContext.hpp"
 #include "core/timer.hpp"
-#include "core/application.hpp"
-#include "platform/layer/layer.hpp"
 #include "window.hpp"
+
+namespace Core {
+class Application;
+}
 
 namespace Platform {
 
 class InputEvent;
 
-enum class ExitCode {
-    Success = 0, /* App executed as expected */
-    Help,        /* App should show help */
-    Close,       /* App has been requested to close at initialization */
-    FatalError   /* App encountered an unexpected error */
-};
+enum class ExitCode { Success = 0, Close, FatalError };
 
 class Platform {
    public:
     Platform(const PlatformContext& context);
-
     virtual ~Platform() = default;
 
-    virtual ExitCode initialize(const std::vector<Layer*>& layers);
-
-    ExitCode mainLoop();
-    ExitCode mainLoopFrame();
-
-    void update();
-
-    virtual void terminate(ExitCode code);
-    virtual void close();
-    virtual void resize(uint32_t width, uint32_t height);
-    virtual void inputEvent(const InputEvent& input_event);
+    ExitCode initialize();
+    ExitCode run(std::unique_ptr<Core::Application> app);
+    void terminate();
 
     Window& getWindow();
-
-    Core::Application& getApp() const;
-    Core::Application& getApp();
+    void setWindowProperties(const Window::Properties& properties);
 
     void setFocus(bool focused);
-    bool startApp();
-    void forceSimulationFPS(float fps);
+    void disableInputProcessing();
 
-    // force the application to always render even if it is not in focus
-    void forceRender(bool should_always_render);
+    void forceRender(bool always_render);
+    void setFixedFPS(float fps);
 
-    void disableInputProc();
-
-    void setWindowProperties(const Window::OptionalProperties& properties);
-
-    static const uint32_t MIN_WINDOW_WIDTH;
-    static const uint32_t MIN_WINDOW_HEIGHT;
+    static const uint32_t MIN_WINDOW_WIDTH = 420;
+    static const uint32_t MIN_WINDOW_HEIGHT = 320;
 
    protected:
-    std::vector<Layer*> m_ActiveLayers;
-    std::unordered_map<Hook, std::vector<Layer*>> m_Hooks;
-
-    std::unique_ptr<Window> m_Window{nullptr};
-
-    std::unique_ptr<Core::Application> m_App{nullptr};
-
     virtual void createWindow(const Window::Properties& properties) = 0;
 
-    void registerHooks(Layer* layer);
+    virtual void processEvents();
+    virtual void handleInputEvent(const InputEvent& event);
+    virtual void handleResize(uint32_t width, uint32_t height);
 
-    void onUpdate(float delta_time);
-    void onAppError(const std::string& app_id);
-    void onAppStart(const std::string& app_id);
-    void onAppClose(const std::string& app_id);
-    void onPlatformClose();
-    void onUpdateUIOverlay();
+   private:
+    ExitCode mainLoop();
+    void updateFrame();
+
+    const PlatformContext& m_Context;
+    std::unique_ptr<Window> m_Window;
+    std::unique_ptr<Core::Application> m_App;
+    Core::Timer m_Timer;
 
     Window::Properties m_WindowProperties;
 
-    bool m_FixedSimFps{false};      // Delta time should be fixed with a fabricated value
-    bool m_AlwaysRender{false};     // App should always render even if not in focus
-    float m_SimFrameTime = 0.016f;  // A fabricated delta time
-    bool m_ProcInputEvents{true};   // App should continue processing input events
-    bool m_Focused{true};           // App is currently in focus at an operating system level
-    bool m_Close{false};            // Close requested
-
-    std::vector<Layer*> m_Plugins;
-
-   private:
-    Core::Timer m_Timer;
+    bool m_Running{false};
+    bool m_Focused{true};
+    bool m_ProcessInput{true};
+    bool m_AlwaysRender{false};
+    bool m_FixedFPS{false};
+    float m_FixedFrameTime{0.016f};
 };
-
 }  // namespace Platform

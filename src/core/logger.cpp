@@ -1,6 +1,6 @@
 #include "logger.hpp"
 #include "assert.hpp"
-#include "platform/platform.hpp"
+#include <iostream>
 #include <format>
 
 void assertion_report_failure(std::string_view expr,
@@ -24,11 +24,11 @@ void Logger::shutdown() {
 
 void Logger::logOutput(LogLevel level, const std::string& message) {
     const size_t levelIndex = static_cast<size_t>(level);
-    const bool isError = levelIndex < 2;
+    // const bool isError = levelIndex < 2;
 
     std::string output = std::format("{}{}", s_levelNames[levelIndex], message);
 
-    Platform::Platform::consoleWrite(output, std::string(s_levelColors[levelIndex]));
+    std::cout << std::string(s_levelColors[levelIndex]) << output << std::endl;
 }
 
 }  // namespace Core

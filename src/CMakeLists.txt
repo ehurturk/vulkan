@@ -1,5 +1,4 @@
 set(ENGINE_CORE_SOURCES
-    core/application.cpp
     core/logger.cpp
     core/timer.cpp
     
@@ -10,7 +9,6 @@ set(ENGINE_PLATFORM_SOURCES
     platform/platform.cpp
     platform/window.cpp
     
-    platform/platform_glfw.cpp
 )
 
 if(PLATFORM_WINDOWS)
