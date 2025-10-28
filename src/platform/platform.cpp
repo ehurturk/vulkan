@@ -8,7 +8,7 @@ namespace Platform {
 
 Platform::Platform(const PlatformContext& context) : m_Context(context) {
     // TODO: parse this info from context arguments
-    m_WindowProperties.title = "Vulkan Game Engine";
+    m_WindowProperties.title = m_Context.arguments()[1];
     m_WindowProperties.extent = {1280, 720};
     m_WindowProperties.resizable = true;
     m_WindowProperties.vsync = Window::Vsync::DEFAULT;
@@ -79,7 +79,7 @@ void Platform::updateFrame() {
 
     if (m_Focused || m_AlwaysRender) {
         m_App->update(deltaTime);
-
+        LOG_INFO("Render app!");
         m_App->render();
     }
 }

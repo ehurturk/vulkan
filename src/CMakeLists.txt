@@ -78,7 +78,7 @@ if(PLATFORM_WINDOWS)
 elseif(PLATFORM_LINUX)
     list(APPEND ENGINE_PLATFORM_HEADERS platform/unix/context.hpp platform/unix/platform.hpp)
 elseif(PLATFORM_MACOS)
-    list(APPEND ENGINE_PLATFORM_HEADERS platform/unix/context.hpp platform/unix/platform.cpp)
+    list(APPEND ENGINE_PLATFORM_HEADERS platform/unix/context.hpp platform/unix/platform.hpp)
 endif()
 
 set(ENGINE_RENDERER_HEADERS

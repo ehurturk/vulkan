@@ -25,8 +25,8 @@ class Application {
     virtual void render() = 0;
     virtual void cleanup() = 0;
 
-    virtual void onResize(uint32_t width, uint32_t height) {}
-    virtual void onInputEvent(const Platform::InputEvent& event) {}
+    virtual void onResize([[maybe_unused]] uint32_t width, [[maybe_unused]] uint32_t height) {}
+    virtual void onInputEvent([[maybe_unused]] const Platform::InputEvent& event) {}
 
     bool shouldClose() const { return m_ShouldClose; }
     void requestClose() { m_ShouldClose = true; }

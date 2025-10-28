@@ -61,12 +61,14 @@ void VulkanRenderer::shutdown() {
 }
 
 void VulkanRenderer::create_instance(bool enableValidation) {
-    VkApplicationInfo appInfo{VK_STRUCTURE_TYPE_APPLICATION_INFO};
+    VkApplicationInfo appInfo{};
+    appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
     appInfo.pApplicationName = "CC Engine";
     appInfo.applicationVersion = VK_MAKE_API_VERSION(1, 0, 0, 0);
     appInfo.pEngineName = "CC Engine";
     appInfo.engineVersion = VK_MAKE_API_VERSION(1, 0, 0, 0);
     appInfo.apiVersion = VK_API_VERSION_1_2;
+    appInfo.pNext = nullptr;
 
     uint32_t glfwCount = 0;
     const char** glfwExts = glfwGetRequiredInstanceExtensions(&glfwCount);
@@ -88,12 +90,14 @@ void VulkanRenderer::create_instance(bool enableValidation) {
         layers.push_back(kValidationLayer);
     }
 
-    VkInstanceCreateInfo ci{VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO};
+    VkInstanceCreateInfo ci{};
+    ci.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
     ci.pApplicationInfo = &appInfo;
     ci.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
     ci.ppEnabledExtensionNames = extensions.data();
     ci.enabledLayerCount = static_cast<uint32_t>(layers.size());
     ci.ppEnabledLayerNames = layers.data();
+    ci.pNext = nullptr;
 
 #ifdef __PLATFORM_MACOS__
     ci.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
@@ -114,13 +118,15 @@ void VulkanRenderer::setup_debug_messenger() {
         return;
     }
 
-    VkDebugUtilsMessengerCreateInfoEXT dbg{VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT};
+    VkDebugUtilsMessengerCreateInfoEXT dbg{};
+    dbg.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
     dbg.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT |
                           VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
     dbg.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
                       VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
                       VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
     dbg.pfnUserCallback = DebugCallback;
+    dbg.pNext = nullptr;
 
     VULKAN_CHECK(pfnCreateDebugUtilsMessengerEXT(m_vkState->instance, &dbg, nullptr,
                                                  &m_vkState->debugMessenger));

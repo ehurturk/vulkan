@@ -4,6 +4,7 @@
 
 #include "core/PlatformContext.hpp"
 #include "core/timer.hpp"
+#include "defines.hpp"
 #include "window.hpp"
 
 namespace Core {
@@ -34,8 +35,8 @@ class Platform {
     void forceRender(bool always_render);
     void setFixedFPS(float fps);
 
-    static const uint32_t MIN_WINDOW_WIDTH = 420;
-    static const uint32_t MIN_WINDOW_HEIGHT = 320;
+    static inline const U32 MIN_WINDOW_WIDTH = 420;
+    static inline const U32 MIN_WINDOW_HEIGHT = 320;
 
    protected:
     virtual void createWindow(const Window::Properties& properties) = 0;

@@ -10,12 +10,12 @@ class JobPoolTest : public ::testing::Test {
 };
 
 TEST_F(JobPoolTest, KicksJob) {
-    auto myjob = [](int a) {
+    auto myjob = []() {
         std::this_thread::sleep_for(std::chrono::seconds(1));
         LOG_INFO("Thread done.");
     };
 
-    auto myjob2 = [](int a) {
+    auto myjob2 = []() {
         std::this_thread::sleep_for(std::chrono::seconds(3));
         LOG_INFO("Thread2 done.");
     };

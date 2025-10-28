@@ -26,9 +26,9 @@ Window::Mode Window::getWindowMode() const {
     return m_Properties.mode;
 }
 
-bool Window::getDisplayPresentInfo(VkDisplayPresentInfoKHR* info,
-                                   uint32_t src_width,
-                                   uint32_t src_height) const {
+bool Window::getDisplayPresentInfo([[maybe_unused]] VkDisplayPresentInfoKHR* info,
+                                   [[maybe_unused]] uint32_t src_width,
+                                   [[maybe_unused]] uint32_t src_height) const {
     // base Window class will not use any extra present info
     return false;
 }

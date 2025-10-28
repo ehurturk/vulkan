@@ -33,8 +33,10 @@ TEST_F(StackAllocatorTest, RespectsAlignment) {
 TEST_F(StackAllocatorTest, FreeToMarkerResetsState) {
     auto initial_marker = allocator.getMarker();
     void* a = allocator.allocate(50);
+    (void)a;
     auto marker_after_50 = allocator.getMarker();
     void* b = allocator.allocate(100);
+    (void)b;
 
     allocator.freeTo(marker_after_50);
     ASSERT_EQ(allocator.getMarker(), marker_after_50);
@@ -45,11 +47,18 @@ TEST_F(StackAllocatorTest, FreeToMarkerResetsState) {
 
 TEST_F(StackAllocatorTest, ThrowsExceptionWhenFull) {
     void* c = allocator.allocate(1000);
-    ASSERT_THROW(allocator.allocate(100), std::bad_alloc);
+    (void)c;
+    ASSERT_THROW(
+        [this]() {
+            void* d = allocator.allocate(100);
+            (void)d;
+        }(),
+        std::bad_alloc);
 }
 
 TEST_F(StackAllocatorTest, ClearResetsAllocator) {
     void* d = allocator.allocate(200);
+    (void)d;
     allocator.clear();
     ASSERT_EQ(allocator.getUsedBytes(), 0);
 }

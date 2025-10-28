@@ -6,9 +6,12 @@
 
 class MyApp : public Core::Application {
    public:
-    bool initialize(Platform::Window* window) override { return true; }
+    bool initialize(Platform::Window* window) override {
+        (void)window;
+        return true;
+    }
 
-    void update(float deltaTime) override {}
+    void update(float deltaTime) override { (void)deltaTime; }
 
     void render() override {}
 

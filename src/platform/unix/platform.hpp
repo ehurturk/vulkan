@@ -10,7 +10,7 @@ class UnixPlatform : public Platform {
     UnixPlatform(const PlatformContext& context, UnixType type);
     ~UnixPlatform();
 
-    void createWindow(const Window::Properties& properties);
+    void createWindow(const Window::Properties& properties) override;
 
    private:
     UnixType m_Type;

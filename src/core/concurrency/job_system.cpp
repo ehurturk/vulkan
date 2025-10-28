@@ -44,6 +44,7 @@ void JobPool::kickJobs(std::span<JobDeclaration> jobs) {
 
 void JobPool::kickJobAndWait(const JobDeclaration& decl) {
     // TODO
+    (void)decl;
 }
 
 void JobPool::kickJobsAndWait(std::span<JobDeclaration> jobs) {
@@ -97,18 +98,6 @@ void JobPool::workerThreadLoop() {
             decl.counter->fetch_sub(1, std::memory_order_acq_rel);
         }
     }
-}
-
-template <typename F>
-void JobPool::JobEntryPointWrapper(uintptr_t param) {
-    F* lambdaptr = reinterpret_cast<F*>(param);
-    try {
-        (*lambdaptr)();
-    } catch (...) {
-        LOG_FATAL("[JobPool]: Exception occured in job!");
-    }
-
-    delete lambdaptr;
 }
 
 bool JobPool::runSingleJob() {

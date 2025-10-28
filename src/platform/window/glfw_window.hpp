@@ -3,6 +3,8 @@
 #include <vulkan/vulkan.h>
 #include "platform/window.hpp"
 
+#include <vector>
+
 namespace Platform {
 class GLFWWindow : public Window {
    public:

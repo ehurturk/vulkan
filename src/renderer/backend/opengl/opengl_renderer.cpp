@@ -10,15 +10,12 @@ OpenGLRenderer::OpenGLRenderer() {
     ASSERT(false);
 }
 
-OpenGLRenderer::~OpenGLRenderer(){
-    
+OpenGLRenderer::~OpenGLRenderer() {}
+
+void OpenGLRenderer::initialize(const RendererConfig& cfg) {
+    (void)cfg;
 }
 
-void OpenGLRenderer::initialize(const RendererConfig &cfg) {
-}
+void OpenGLRenderer::shutdown() {}
 
-void OpenGLRenderer::shutdown() {
-
-}
-
-}
+}  // namespace Renderer

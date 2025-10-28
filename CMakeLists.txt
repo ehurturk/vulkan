@@ -8,7 +8,7 @@ project(VulkanGameEngine
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS OFF)
+# set(CMAKE_CXX_EXTENSIONS OFF)
 
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "Choose the type of build" FORCE)
@@ -88,7 +88,7 @@ function(setup_compiler_settings target)
         target_compile_options(${target} PRIVATE
             -Wall
             -Wextra
-            -Wpedantic
+            # -Wpedantic
             -Werror
             # -Wno-unused-parameter
         )

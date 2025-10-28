@@ -1,5 +1,6 @@
 #pragma once
 
+#include <type_traits>
 #include <vector>
 #include <queue>
 #include <atomic>
@@ -9,6 +10,8 @@
 #include <functional>
 #include <span>
 #include <atomic>
+
+#include "core/logger.hpp"
 
 namespace Core {
 class JobPool {
@@ -36,10 +39,11 @@ class JobPool {
 
     template <typename F>
     void kickJob(F&& job_func, JobCounter* ctr = nullptr, Priority p = Priority::NORMAL) {
-        F* lambdaptr = new F(std::forward<F>(job_func));
+        using DecayedF = std::decay_t<F>;
+        DecayedF* lambdaptr = new DecayedF(std::forward<F>(job_func));
 
         JobDeclaration decl;
-        decl.entry_point = &JobEntryPointWrapper<F>;
+        decl.entry_point = &JobEntryPointWrapper<DecayedF>;
         decl.param = reinterpret_cast<uintptr_t>(lambdaptr);
         decl.counter = ctr;
         decl.priority = p;
@@ -59,7 +63,16 @@ class JobPool {
     void workerThreadLoop();
 
     template <typename F>
-    static void JobEntryPointWrapper(uintptr_t param);
+    static void JobEntryPointWrapper(uintptr_t param) {
+        F* lambdaptr = reinterpret_cast<F*>(param);
+        try {
+            (*lambdaptr)();
+        } catch (...) {
+            LOG_FATAL("[JobPool]: Exception occured in job!");
+        }
+
+        delete lambdaptr;
+    }
 
     bool runSingleJob();
 

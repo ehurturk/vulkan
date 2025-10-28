@@ -5,6 +5,7 @@
 #include <optional>
 #include <vulkan/vulkan.h>
 #include <string>
+#include <vector>
 
 namespace Platform {
 
@@ -61,6 +62,7 @@ class Window {
     virtual bool getDisplayPresentInfo(VkDisplayPresentInfoKHR* info,
                                        U32 src_width,
                                        U32 src_height) const;
+
     virtual std::vector<const char*> getRequiredSurfaceExtensions() const = 0;
 
     const Extent& getExtent() const;

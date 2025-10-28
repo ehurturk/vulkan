@@ -61,7 +61,6 @@ class PoolAllocator {
         n->next = m_FreeHead;
         m_FreeHead = n;
         --m_InUse;
-        std::allocator
     }
 
     template <typename... Args>
