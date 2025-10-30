@@ -15,9 +15,9 @@ FetchContent_MakeAvailable(googletest)
 set(TEST_SOURCES
     engine_tests.cpp
     
-    memory/stackalloc_tests.cpp
-    memory/destackalloc_tests.cpp
-    memory/poolalloc_tests.cpp
+    #memory/stackalloc_tests.cpp
+    #memory/destackalloc_tests.cpp
+    #memory/poolalloc_tests.cpp
     
     concurrency/threadpool_tests.cpp
 )

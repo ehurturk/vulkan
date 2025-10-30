@@ -44,6 +44,7 @@ class Platform {
     virtual void processEvents();
     virtual void handleInputEvent(const InputEvent& event);
     virtual void handleResize(uint32_t width, uint32_t height);
+
     std::unique_ptr<Window> m_Window;
 
    private:

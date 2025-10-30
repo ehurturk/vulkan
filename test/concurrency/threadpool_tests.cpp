@@ -21,8 +21,10 @@ TEST_F(JobPoolTest, KicksJob) {
     };
 
     JobPool::JobCounter ctr{};
+
     job.kickJob(myjob, &ctr, JobPool::Priority::NORMAL);
     job.kickJob(myjob2, &ctr, JobPool::Priority::CRITICAL);
+
     job.waitForCounter(&ctr);
 
     EXPECT_TRUE(true);

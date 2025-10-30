@@ -18,13 +18,7 @@ class MyApp : public Core::Application {
     void cleanup() override {}
 };
 
-ENTRYPOINT(playground) {
-    for (const auto& arg : playground.arguments()) {
-        LOG_INFO("Arg: {}", arg);
-    }
-
-    Platform::UnixPlatform platform(playground, Platform::UnixType::MACOS);
-
+ENTRYPOINT(platform) {
     MyApp app;
 
     platform.initialize();

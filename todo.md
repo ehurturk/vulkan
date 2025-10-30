@@ -16,22 +16,31 @@
 
 ## TODO
 
-1) Cmake:
+- Cmake:
 
 - [x] Resolve the DEBUG/RELEASE issue
 - [x] Debug/Release type for both playground & src cmake?
 
-2) Allocators:
+- Allocators:
 
 - [ ] PoolAllocator & PoolAdapter -> `std::list` compatibility??
 - [ ] Create the `Allocator` superclass, make other allocators implement it. The `Allocator` superclass defaults to
   standard allocator `std::allocator`.
 - [ ] Is `MemoryAllocator` a singleton?
 
-3) Windows
+- Windows
 - [ ] Finish GLFWWindow & HeadlessWindow
 - [ ] Wrap platform abstraction into AppPlatform
 - [ ] Test loading and opening windows
+
+- PlatformEntryPoint
+- [ ] Add Windows platform creation inside the entry point
+
+- PlatformContext:
+- [ ] In entry point: why are we creating a unique pointer and returning it?
+
+- GLFWWindow:
+- [ ] Fullscreen/windowed mode (in glfwGetPrimaryMonitor)
 
 4) Platform
 - [ ] Try to think of better ways of handling platform abstraction

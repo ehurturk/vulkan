@@ -20,6 +20,7 @@ class Application {
     Application() = default;
     virtual ~Application() = default;
 
+    // window must be non-owning, it must be a view to the main window
     virtual bool initialize(Platform::Window* window) = 0;
     virtual void update(float deltaTime) = 0;
     virtual void render() = 0;

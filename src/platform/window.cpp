@@ -1,6 +1,7 @@
 #include "window.hpp"
 
 namespace Platform {
+
 Window::Window(const Properties& properties) : m_Properties{properties} {}
 
 void Window::processEvents() {}

@@ -31,6 +31,7 @@ class Window {
         std::optional<Vsync> vsync;
         OptionalExtent extent;
     };
+
     struct Properties {
         std::string title = "";
         Mode mode = Mode::DEFAULT;
@@ -39,8 +40,7 @@ class Window {
         Extent extent = {1280, 720};
     };
 
-    Window(const Properties& properties);
-
+    explicit Window(const Properties& properties);
     virtual ~Window() = default;
 
     virtual VkSurfaceKHR createSurface(VkInstance instance,
@@ -55,7 +55,7 @@ class Window {
     virtual float getContentScaleFactor() const;
 
     inline void setTitle(const std::string& title) { m_Properties.title = title; }
-    inline const std::string& getTitle() { return m_Properties.title; }  // TODO: remove ref?
+    inline std::string getTitle() const { return m_Properties.title; }
 
     Extent resize(const Extent& extent);
 

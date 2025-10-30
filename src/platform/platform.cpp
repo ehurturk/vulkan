@@ -17,6 +17,7 @@ Platform::Platform(const PlatformContext& context) : m_Context(context) {
 ExitCode Platform::initialize() {
     LOG_INFO("[Platform]:Initializing platform for {}", m_WindowProperties.title);
 
+    // Delagate the correct platform to initialize the platform
     createWindow(m_WindowProperties);
 
     if (!m_Window) {
@@ -79,7 +80,6 @@ void Platform::updateFrame() {
 
     if (m_Focused || m_AlwaysRender) {
         m_App->update(deltaTime);
-        LOG_INFO("Render app!");
         m_App->render();
     }
 }

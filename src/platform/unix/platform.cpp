@@ -28,7 +28,7 @@ void UnixPlatform::createWindow(const Window::Properties& properties) {
             m_Window = std::make_unique<HeadlessWindow>();
             break;
         default:
-            m_Window = std::make_unique<GLFWWindow>();
+            m_Window = std::make_unique<GLFWWindow>(properties);
             break;
     }
 }

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <GLFW/glfw3.h>
 #include <vulkan/vulkan.h>
 #include "platform/window.hpp"
 
@@ -8,7 +9,7 @@
 namespace Platform {
 class GLFWWindow : public Window {
    public:
-    GLFWWindow();
+    GLFWWindow(const Window::Properties& properties);
     ~GLFWWindow();
 
     VkSurfaceKHR createSurface(VkInstance instance,
@@ -23,5 +24,12 @@ class GLFWWindow : public Window {
     float getContentScaleFactor() const override;
 
     std::vector<const char*> getRequiredSurfaceExtensions() const override;
+
+    bool getDisplayPresentInfo(VkDisplayPresentInfoKHR* info,
+                               U32 src_width,
+                               U32 src_height) const override;
+
+   private:
+    GLFWwindow* m_Window;
 };
 }  // namespace Platform
