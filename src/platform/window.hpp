@@ -54,7 +54,7 @@ class Window {
     virtual float getDPI() const = 0;
     virtual float getContentScaleFactor() const;
 
-    inline void setTitle(const std::string& title) { m_Properties.title = title; }
+    virtual void setTitle(const std::string& title) { m_Properties.title = title; }
     inline std::string getTitle() const { return m_Properties.title; }
 
     Extent resize(const Extent& extent);

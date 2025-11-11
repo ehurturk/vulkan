@@ -15,15 +15,13 @@ namespace Platform {
 
 class InputEvent;
 
-enum class ExitCode { Success = 0, Close, FatalError };
-
 class Platform {
    public:
     Platform(const PlatformContext& context);
     virtual ~Platform() = default;
 
-    ExitCode initialize();
-    ExitCode run(Core::Application* app);
+    bool initialize();
+    bool run(Core::Application* app);
     void terminate();
 
     Window& getWindow();
@@ -48,7 +46,7 @@ class Platform {
     std::unique_ptr<Window> m_Window;
 
    private:
-    ExitCode mainLoop();
+    bool mainLoop();
     void updateFrame();
 
     const PlatformContext& m_Context;

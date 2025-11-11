@@ -6,7 +6,8 @@
 
 namespace Platform {
 
-Platform::Platform(const PlatformContext& context) : m_Context(context) {
+Platform::Platform(const PlatformContext& context)
+    : m_Context{context}, m_App{nullptr}, m_Timer{}, m_WindowProperties{} {
     // TODO: parse this info from context arguments
     m_WindowProperties.title = m_Context.arguments()[1];
     m_WindowProperties.extent = {1280, 720};
@@ -14,38 +15,38 @@ Platform::Platform(const PlatformContext& context) : m_Context(context) {
     m_WindowProperties.vsync = Window::Vsync::DEFAULT;
 }
 
-ExitCode Platform::initialize() {
+bool Platform::initialize() {
     LOG_INFO("[Platform]:Initializing platform for {}", m_WindowProperties.title);
 
-    // Delagate the correct platform to initialize the platform
+    // Delagate the job to the correct platform to initialize the window
     createWindow(m_WindowProperties);
 
     if (!m_Window) {
         LOG_FATAL("[Platform]:Failed to create window");
-        return ExitCode::FatalError;
+        return false;
     }
 
     LOG_INFO("[Platform]:Platform initialized successfully");
-    return ExitCode::Success;
+    return true;
 }
 
-ExitCode Platform::run(Core::Application* app) {
+bool Platform::run(Core::Application* app) {
     if (!app) {
         LOG_ERROR("[Platform]:No application provided to run");
-        return ExitCode::FatalError;
+        return false;
     }
 
     m_App = app;
 
     if (!m_App->initialize(m_Window.get())) {
         LOG_ERROR("[Platform]:Failed to initialize application: {}", m_App->getName());
-        return ExitCode::FatalError;
+        return false;
     }
 
     LOG_INFO("[Platform]:Starting application: {}", m_App->getName());
     m_Running = true;
 
-    ExitCode result = mainLoop();
+    bool result = mainLoop();
 
     m_App->cleanup();
     LOG_INFO("[Platform]:Application finished with exit code: {}", static_cast<int>(result));
@@ -53,7 +54,7 @@ ExitCode Platform::run(Core::Application* app) {
     return result;
 }
 
-ExitCode Platform::mainLoop() {
+bool Platform::mainLoop() {
     m_Timer.start();
 
     while (m_Running && !m_App->shouldClose()) {
@@ -66,7 +67,7 @@ ExitCode Platform::mainLoop() {
         updateFrame();
     }
 
-    return ExitCode::Success;
+    return true;
 }
 
 void Platform::updateFrame() {

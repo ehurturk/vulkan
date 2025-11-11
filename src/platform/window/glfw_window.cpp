@@ -22,6 +22,7 @@ GLFWWindow::GLFWWindow(const Window::Properties& properties) : Window(properties
     }
 
     glfwSetWindowUserPointer(m_Window, this);
+    glfwSetWindowTitle(m_Window, properties.title.c_str());
 }
 
 GLFWWindow::~GLFWWindow() {
@@ -76,6 +77,11 @@ bool GLFWWindow::getDisplayPresentInfo(VkDisplayPresentInfoKHR* info,
     (void)src_height;
 
     return true;
+}
+
+void GLFWWindow::setTitle(const std::string& title) {
+    m_Properties.title = title;
+    glfwSetWindowTitle(m_Window, title.c_str());
 }
 
 }  // namespace Platform

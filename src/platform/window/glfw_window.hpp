@@ -29,6 +29,8 @@ class GLFWWindow : public Window {
                                U32 src_width,
                                U32 src_height) const override;
 
+    void setTitle(const std::string& title) override;
+
    private:
     GLFWwindow* m_Window;
 };
