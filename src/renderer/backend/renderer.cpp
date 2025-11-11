@@ -1,13 +1,13 @@
 #include "renderer.hpp"
 #include "vulkan/vulkan_renderer.hpp"
-#include "renderer/backend/opengl/opengl_renderer.hpp"
+#include "opengl/opengl_renderer.hpp"
 #include "core/assert.hpp"
 
 #include <memory>
 
 namespace Renderer {
 
-std::unique_ptr<IRendererBackend> MakeRenderer(RendererBackendType t) {
+std::unique_ptr<RendererBackend> CreateRendererBackend(RendererBackendType t) {
     switch (t) {
         case RendererBackendType::Vulkan:
             return std::make_unique<VulkanRenderer>();
@@ -20,7 +20,7 @@ std::unique_ptr<IRendererBackend> MakeRenderer(RendererBackendType t) {
 }
 
 Renderer::Renderer(const RendererConfig& cfg)
-    : m_Config(cfg), m_Backend(MakeRenderer(cfg.backend)) {}
+    : m_Config(cfg), m_Backend(CreateRendererBackend(cfg.backend)) {}
 
 Renderer::~Renderer() {
     shutdown();

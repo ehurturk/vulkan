@@ -10,9 +10,9 @@ struct RendererConfig {
     bool enableValidation = true;
 };
 
-class IRendererBackend {
+class RendererBackend {
    public:
-    virtual ~IRendererBackend() = default;
+    virtual ~RendererBackend() = default;
     virtual void initialize(const RendererConfig&) = 0;
     virtual void shutdown() = 0;
 };
@@ -34,9 +34,9 @@ class Renderer {
 
    private:
     RendererConfig m_Config;
-    std::unique_ptr<IRendererBackend> m_Backend;
+    std::unique_ptr<RendererBackend> m_Backend;
 };
 
-std::unique_ptr<IRendererBackend> MakeRenderer(RendererBackendType);
+std::unique_ptr<RendererBackend> CreateRendererBackend(RendererBackendType);
 
 }  // namespace Renderer

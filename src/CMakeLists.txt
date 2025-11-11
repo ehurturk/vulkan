@@ -65,7 +65,6 @@ set(ENGINE_CORE_HEADERS
 
 set(ENGINE_PLATFORM_HEADERS
     platform/platform.hpp
-    platform/app_platform.hpp
     platform/window.hpp
     platform/core/PlatformContext.hpp
     platform/core/PlatformEntryPoint.hpp

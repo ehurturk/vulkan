@@ -39,7 +39,11 @@ class Application {
     float getFrameTime() const { return m_FrameTime; }
 
    protected:
+    /* Non owning view of platform's window */
     Platform::Window* m_Window{nullptr};
+
+    /* Owning renderer */
+    std::unique_ptr<Renderer::Renderer> m_Renderer;
 
    private:
     std::string m_Name{"Game Application"};
