@@ -13,10 +13,9 @@ HeadlessWindow::~HeadlessWindow() {
 }
 
 // Implement all the pure virtual functions from Window base class
-VkSurfaceKHR HeadlessWindow::createSurface(VkInstance instance, VkPhysicalDevice physicalDevice) {
+VkSurfaceKHR HeadlessWindow::createSurface(VkInstance instance) {
     // TODO: Implement
     (void)instance;
-    (void)physicalDevice;
     return VK_NULL_HANDLE;
 }
 
@@ -43,7 +42,7 @@ float HeadlessWindow::getContentScaleFactor() const {
     return 1.0f;
 }
 
-std::vector<const char*> HeadlessWindow::getRequiredSurfaceExtensions() const {
+std::vector<const char*> HeadlessWindow::getRequiredInstanceExtensions() const {
     // TODO: Implement
     return {};
 }

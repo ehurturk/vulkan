@@ -11,8 +11,7 @@ class HeadlessWindow : public Window {
     HeadlessWindow();
     ~HeadlessWindow();
 
-    VkSurfaceKHR createSurface(VkInstance instance,
-                               VkPhysicalDevice physicalDevice = VK_NULL_HANDLE) override;
+    VkSurfaceKHR createSurface(VkInstance instance) override;
 
     void processEvents() override;
 
@@ -22,6 +21,6 @@ class HeadlessWindow : public Window {
     float getDPI() const override;
     float getContentScaleFactor() const override;
 
-    std::vector<const char*> getRequiredSurfaceExtensions() const override;
+    std::vector<const char*> getRequiredInstanceExtensions() const override;
 };
 }  // namespace Platform

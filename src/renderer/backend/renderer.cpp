@@ -1,4 +1,6 @@
 #include "renderer.hpp"
+#include "platform/platform.hpp"
+#include "platform/window.hpp"
 #include "vulkan/vulkan_renderer.hpp"
 #include "opengl/opengl_renderer.hpp"
 #include "core/assert.hpp"
@@ -7,10 +9,11 @@
 
 namespace Renderer {
 
-std::unique_ptr<RendererBackend> CreateRendererBackend(RendererBackendType t) {
+std::unique_ptr<RendererBackend> CreateRendererBackend(Platform::Window* window,
+                                                       RendererBackendType t) {
     switch (t) {
         case RendererBackendType::Vulkan:
-            return std::make_unique<VulkanRenderer>();
+            return std::make_unique<VulkanRenderer>(window);
         case RendererBackendType::OpenGL:
             return std::make_unique<OpenGLRenderer>();
         default:
@@ -19,8 +22,8 @@ std::unique_ptr<RendererBackend> CreateRendererBackend(RendererBackendType t) {
     return {};
 }
 
-Renderer::Renderer(const RendererConfig& cfg)
-    : m_Config(cfg), m_Backend(CreateRendererBackend(cfg.backend)) {}
+Renderer::Renderer(Platform::Window* window, const RendererConfig& cfg)
+    : m_Config(cfg), m_Backend(CreateRendererBackend(window, cfg.backend)) {}
 
 Renderer::~Renderer() {
     shutdown();

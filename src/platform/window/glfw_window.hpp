@@ -1,10 +1,12 @@
 #pragma once
 
-#include <GLFW/glfw3.h>
 #include <vulkan/vulkan.h>
 #include "platform/window.hpp"
 
 #include <vector>
+
+// forward declare
+struct GLFWwindow;
 
 namespace Platform {
 class GLFWWindow : public Window {
@@ -12,8 +14,7 @@ class GLFWWindow : public Window {
     GLFWWindow(const Window::Properties& properties);
     ~GLFWWindow();
 
-    VkSurfaceKHR createSurface(VkInstance instance,
-                               VkPhysicalDevice physicalDevice = VK_NULL_HANDLE) override;
+    VkSurfaceKHR createSurface(VkInstance instance) override;
 
     void processEvents() override;
 
@@ -23,7 +24,7 @@ class GLFWWindow : public Window {
     float getDPI() const override;
     float getContentScaleFactor() const override;
 
-    std::vector<const char*> getRequiredSurfaceExtensions() const override;
+    std::vector<const char*> getRequiredInstanceExtensions() const override;
 
     bool getDisplayPresentInfo(VkDisplayPresentInfoKHR* info,
                                U32 src_width,

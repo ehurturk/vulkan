@@ -10,11 +10,15 @@
 #include "renderer/backend/renderer.hpp"
 #include "defines.hpp"
 
+namespace Platform {
+class Window;
+}
+
 namespace Renderer {
 
 class VulkanRenderer final : public RendererBackend {
    public:
-    VulkanRenderer();
+    VulkanRenderer(Platform::Window* window);
     ~VulkanRenderer() override;
 
     void initialize(const RendererConfig& cfg) override;
@@ -30,8 +34,9 @@ class VulkanRenderer final : public RendererBackend {
 
     struct QueueFamilyIndices {
         std::optional<U32> graphicsFamily;
+        std::optional<U32> presentFamily;
 
-        bool is_complete() { return graphicsFamily.has_value(); }
+        bool is_complete() { return graphicsFamily.has_value() && presentFamily.has_value(); }
     };
 
     void create_instance();
@@ -42,8 +47,11 @@ class VulkanRenderer final : public RendererBackend {
     void pick_physical_device();
     bool is_physical_device_suitable(VkPhysicalDevice device);
     void create_logical_device();
+    void create_surface();
 
     QueueFamilyIndices find_queue_families(VkPhysicalDevice device);
+
+    Platform::Window* m_Window;
 
     std::unique_ptr<VkState> m_vkState;
     std::vector<const char*> m_ValidationLayers;
@@ -51,5 +59,7 @@ class VulkanRenderer final : public RendererBackend {
     VkDevice m_Device;
     VkPhysicalDevice m_PhysicalDevice;
     VkQueue m_GraphicsQueue;
+    VkQueue m_PresentQueue;
+    VkSurfaceKHR m_Surface;
 };
 }  // namespace Renderer

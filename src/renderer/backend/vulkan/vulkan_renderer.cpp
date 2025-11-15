@@ -1,8 +1,10 @@
 #include "vulkan_renderer.hpp"
+#include <set>
 #include "core/logger.hpp"
 #include "core/assert.hpp"
 #include "../renderer.hpp"
 #include "defines.hpp"
+#include "platform/window.hpp"
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
@@ -57,11 +59,14 @@ static void DestroyDebugUtilsMessengerEXT(VkInstance instance,
     }
 }
 
-VulkanRenderer::VulkanRenderer()
-    : m_vkState(std::make_unique<VkState>()),
+VulkanRenderer::VulkanRenderer(Platform::Window* window)
+    : m_Window(window),
+      m_vkState(std::make_unique<VkState>()),
       m_ValidationLayers({"VK_LAYER_KHRONOS_validation"}),
       m_Device(VK_NULL_HANDLE),
-      m_PhysicalDevice(VK_NULL_HANDLE) {
+      m_PhysicalDevice(VK_NULL_HANDLE),
+      m_GraphicsQueue(VK_NULL_HANDLE),
+      m_Surface(VK_NULL_HANDLE) {
     LOG_WARN("VULKAN IS INITIALIZED!");
 }
 
@@ -74,6 +79,7 @@ void VulkanRenderer::initialize(const RendererConfig& cfg) {
     create_instance();
     if (m_vkState->validation)
         setup_debug_messenger();
+    create_surface();
     pick_physical_device();
     create_logical_device();
 
@@ -88,6 +94,8 @@ void VulkanRenderer::shutdown() {
     if (m_vkState->validation && m_vkState->debugMessenger) {
         DestroyDebugUtilsMessengerEXT(m_vkState->instance, m_vkState->debugMessenger, nullptr);
     }
+
+    vkDestroySurfaceKHR(m_vkState->instance, m_Surface, nullptr);
 
     vkDestroyInstance(m_vkState->instance, nullptr);
 
@@ -116,10 +124,6 @@ void VulkanRenderer::create_instance() {
     ci.pApplicationInfo = &appInfo;
 
     auto extensions = getRequiredExtensions();
-
-#ifdef __PLATFORM_MACOS__
-    extensions.push_back("VK_KHR_get_physical_device_properties2");
-#endif
 
     ci.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
     ci.ppEnabledExtensionNames = extensions.data();
@@ -154,7 +158,7 @@ bool VulkanRenderer::check_validation_layer_support() {
     U32 layerCount;
     vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
 
-    std::vector<VkLayerProperties> availableLayers{layerCount};
+    std::vector<VkLayerProperties> availableLayers(layerCount);
     vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
 
     for (const auto& layer_name : m_ValidationLayers) {
@@ -173,27 +177,41 @@ bool VulkanRenderer::check_validation_layer_support() {
     return true;
 }
 
+void VulkanRenderer::create_surface() {
+    m_Surface = m_Window->createSurface(m_vkState->instance);
+}
+
 void VulkanRenderer::create_logical_device() {
     QueueFamilyIndices indices = find_queue_families(m_PhysicalDevice);
 
-    VkDeviceQueueCreateInfo queueCreateInfo{};
-    queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-    queueCreateInfo.queueFamilyIndex = indices.graphicsFamily.value();
-    queueCreateInfo.queueCount = 1;
+    std::vector<VkDeviceQueueCreateInfo> queueCreateInfos{};
+    std::set<U32> uniqueQueueFamilies = {indices.graphicsFamily.value(),
+                                         indices.presentFamily.value()};
 
     float queuePriority = 1.0f;
-    queueCreateInfo.pQueuePriorities = &queuePriority;
+    for (U32 queueFamily : uniqueQueueFamilies) {
+        VkDeviceQueueCreateInfo queueCreateInfo{};
+        queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+        queueCreateInfo.queueFamilyIndex = queueFamily;
+        queueCreateInfo.queueCount = 1;
+        queueCreateInfo.pQueuePriorities = &queuePriority;
+        queueCreateInfos.push_back(queueCreateInfo);
+    }
 
     VkPhysicalDeviceFeatures deviceFeatures{};
 
+    std::vector<const char*> deviceExtensions;
+#ifdef __PLATFORM_MACOS__
+    deviceExtensions.push_back("VK_KHR_portability_subset");
+#endif
+
     VkDeviceCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-    createInfo.pQueueCreateInfos = &queueCreateInfo;
-    createInfo.queueCreateInfoCount = 1;
+    createInfo.pQueueCreateInfos = queueCreateInfos.data();
+    createInfo.queueCreateInfoCount = queueCreateInfos.size();
     createInfo.pEnabledFeatures = &deviceFeatures;
-    createInfo.enabledExtensionCount = 1;
-    const char* devicePortabilitySubsetExtension = "VK_KHR_portability_subset";
-    createInfo.ppEnabledExtensionNames = &devicePortabilitySubsetExtension;
+    createInfo.enabledExtensionCount = static_cast<U32>(deviceExtensions.size());
+    createInfo.ppEnabledExtensionNames = deviceExtensions.data();
 
     if (m_vkState->validation) {
         createInfo.enabledLayerCount = static_cast<U32>(m_ValidationLayers.size());
@@ -205,6 +223,7 @@ void VulkanRenderer::create_logical_device() {
     VULKAN_CHECK(vkCreateDevice(m_PhysicalDevice, &createInfo, nullptr, &m_Device));
 
     vkGetDeviceQueue(m_Device, indices.graphicsFamily.value(), 0, &m_GraphicsQueue);
+    vkGetDeviceQueue(m_Device, indices.presentFamily.value(), 0, &m_PresentQueue);
 }
 
 void VulkanRenderer::pick_physical_device() {
@@ -215,7 +234,7 @@ void VulkanRenderer::pick_physical_device() {
         ASSERT(false);
     }
 
-    std::vector<VkPhysicalDevice> devices{deviceCount};
+    std::vector<VkPhysicalDevice> devices(deviceCount);
     vkEnumeratePhysicalDevices(m_vkState->instance, &deviceCount, devices.data());
 
     // Select the first physical device
@@ -235,7 +254,7 @@ VulkanRenderer::QueueFamilyIndices VulkanRenderer::find_queue_families(VkPhysica
     U32 queueFamilyCount = 0;
     vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
 
-    std::vector<VkQueueFamilyProperties> queueFamilies{queueFamilyCount};
+    std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
     vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
 
     int i = 0;
@@ -243,6 +262,14 @@ VulkanRenderer::QueueFamilyIndices VulkanRenderer::find_queue_families(VkPhysica
         if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
             indices.graphicsFamily = i;
         }
+
+        VkBool32 presentSupport = false;
+        vkGetPhysicalDeviceSurfaceSupportKHR(device, i, m_Surface, &presentSupport);
+
+        if (presentSupport) {
+            indices.presentFamily = i;
+        }
+
         if (indices.is_complete())
             break;
         i++;
@@ -258,13 +285,11 @@ bool VulkanRenderer::is_physical_device_suitable(VkPhysicalDevice device) {
 }
 
 std::vector<const char*> VulkanRenderer::getRequiredExtensions() {
-    uint32_t glfwCount = 0;
-    const char** glfwExts = glfwGetRequiredInstanceExtensions(&glfwCount);
-
-    std::vector<const char*> extensions(glfwExts, glfwExts + glfwCount);
+    auto extensions = m_Window->getRequiredInstanceExtensions();
 
 #ifdef __PLATFORM_MACOS__
     extensions.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
+    extensions.push_back("VK_KHR_get_physical_device_properties2");
 #endif
 
     if (m_vkState->validation) {

@@ -43,8 +43,9 @@ class Window {
     explicit Window(const Properties& properties);
     virtual ~Window() = default;
 
-    virtual VkSurfaceKHR createSurface(VkInstance instance,
-                                       VkPhysicalDevice physical_device = VK_NULL_HANDLE) = 0;
+    /* Vulkan Surface */
+    virtual VkSurfaceKHR createSurface(VkInstance instance) = 0;
+    virtual std::vector<const char*> getRequiredInstanceExtensions() const = 0;
 
     virtual void processEvents();
 
@@ -62,8 +63,6 @@ class Window {
     virtual bool getDisplayPresentInfo(VkDisplayPresentInfoKHR* info,
                                        U32 src_width,
                                        U32 src_height) const;
-
-    virtual std::vector<const char*> getRequiredSurfaceExtensions() const = 0;
 
     const Extent& getExtent() const;
     Mode getWindowMode() const;

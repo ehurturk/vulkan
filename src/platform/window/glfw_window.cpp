@@ -1,11 +1,16 @@
+
 #include "glfw_window.hpp"
+#include <vulkan/vulkan_core.h>
 
 #include "core/logger.hpp"
+
+#define GLFW_INCLUDE_VULKAN
+#include <GLFW/glfw3.h>
 
 namespace Platform {
 
 GLFWWindow::GLFWWindow(const Window::Properties& properties) : Window(properties) {
-    LOG_INFO("Creating GLFW Window {}...", m_Properties.title);
+    LOG_INFO("Creating GLFW Window...");
     glfwInit();
 
     // Initialize GLFW window
@@ -30,12 +35,12 @@ GLFWWindow::~GLFWWindow() {
     close();
 }
 
-// Implement all the pure virtual functions from Window base class
-VkSurfaceKHR GLFWWindow::createSurface(VkInstance instance, VkPhysicalDevice physicalDevice) {
-    // TODO: Implement
-    (void)instance;
-    (void)physicalDevice;
-    return VK_NULL_HANDLE;
+// for vulkan simply use glfw surface
+VkSurfaceKHR GLFWWindow::createSurface(VkInstance instance) {
+    VkSurfaceKHR surface{};
+    if (glfwCreateWindowSurface(instance, m_Window, nullptr, &surface))
+        return VK_NULL_HANDLE;
+    return surface;
 }
 
 void GLFWWindow::processEvents() {
@@ -63,10 +68,11 @@ float GLFWWindow::getContentScaleFactor() const {
     return 1.0f;
 }
 
-std::vector<const char*> GLFWWindow::getRequiredSurfaceExtensions() const {
-    // TODO: Implement
-    std::vector<const char*> vec;
-    return vec;
+std::vector<const char*> GLFWWindow::getRequiredInstanceExtensions() const {
+    uint32_t glfwCount = 0;
+    const char** glfwExts = glfwGetRequiredInstanceExtensions(&glfwCount);
+
+    return {glfwExts, glfwExts + glfwCount};
 }
 
 bool GLFWWindow::getDisplayPresentInfo(VkDisplayPresentInfoKHR* info,

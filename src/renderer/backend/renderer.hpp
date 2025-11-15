@@ -1,6 +1,10 @@
 #pragma once
 #include <memory>
 
+namespace Platform {
+class Window;
+}
+
 namespace Renderer {
 
 enum class RendererBackendType { Vulkan, OpenGL };
@@ -19,7 +23,7 @@ class RendererBackend {
 
 class Renderer {
    public:
-    explicit Renderer(const RendererConfig& cfg);
+    Renderer(Platform::Window* window, const RendererConfig& cfg);
     ~Renderer();
 
     // delete copy operations, default move operations
@@ -37,6 +41,6 @@ class Renderer {
     std::unique_ptr<RendererBackend> m_Backend;
 };
 
-std::unique_ptr<RendererBackend> CreateRendererBackend(RendererBackendType);
+std::unique_ptr<RendererBackend> CreateRendererBackend(Platform::Window&, RendererBackendType);
 
 }  // namespace Renderer

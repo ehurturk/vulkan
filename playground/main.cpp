@@ -7,17 +7,17 @@
 
 class MyApp : public Core::Application {
    public:
-    MyApp() {
-        LOG_DEBUG("STARTING MYAPP!!!!!");
-        Renderer::RendererConfig rendererConfig;
-        rendererConfig.backend = Renderer::RendererBackendType::Vulkan;
-        rendererConfig.enableValidation = true;
-        m_Renderer = std::make_unique<Renderer::Renderer>(rendererConfig);
-    }
+    MyApp() { LOG_DEBUG("STARTING MYAPP!!!!!"); }
 
     bool initialize(Platform::Window* window) override {
         LOG_INFO("[MyApp]: Initializing my app!");
         m_Window = window;
+
+        Renderer::RendererConfig rendererConfig;
+        rendererConfig.backend = Renderer::RendererBackendType::Vulkan;
+        rendererConfig.enableValidation = true;
+        m_Renderer = std::make_unique<Renderer::Renderer>(m_Window, rendererConfig);
+
         m_Renderer->initialize();
         return true;
     }
