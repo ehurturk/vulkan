@@ -65,6 +65,8 @@ class Window {
                                        U32 src_height) const;
 
     const Extent& getExtent() const;
+    virtual const Extent getExtentPixel() const = 0;
+
     Mode getWindowMode() const;
 
     inline const Properties& getProperties() const { return m_Properties; }

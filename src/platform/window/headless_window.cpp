@@ -42,6 +42,9 @@ float HeadlessWindow::getContentScaleFactor() const {
     return 1.0f;
 }
 
+const HeadlessWindow::Extent HeadlessWindow::getExtentPixel() const {
+    return {.width = 0, .height = 0};
+}
 std::vector<const char*> HeadlessWindow::getRequiredInstanceExtensions() const {
     // TODO: Implement
     return {};

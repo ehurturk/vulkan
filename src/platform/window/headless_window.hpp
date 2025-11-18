@@ -18,6 +18,8 @@ class HeadlessWindow : public Window {
     void close() override;
     bool shouldClose() override;
 
+    const Extent getExtentPixel() const override;
+
     float getDPI() const override;
     float getContentScaleFactor() const override;
 

@@ -24,6 +24,8 @@ class GLFWWindow : public Window {
     float getDPI() const override;
     float getContentScaleFactor() const override;
 
+    const Extent getExtentPixel() const override;
+
     std::vector<const char*> getRequiredInstanceExtensions() const override;
 
     bool getDisplayPresentInfo(VkDisplayPresentInfoKHR* info,

@@ -68,6 +68,12 @@ float GLFWWindow::getContentScaleFactor() const {
     return 1.0f;
 }
 
+const GLFWWindow::Extent GLFWWindow::getExtentPixel() const {
+    int width, height;
+    glfwGetFramebufferSize(m_Window, &width, &height);
+    return {.width = static_cast<U32>(width), .height = static_cast<U32>(height)};
+}
+
 std::vector<const char*> GLFWWindow::getRequiredInstanceExtensions() const {
     uint32_t glfwCount = 0;
     const char** glfwExts = glfwGetRequiredInstanceExtensions(&glfwCount);
