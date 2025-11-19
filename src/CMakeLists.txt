@@ -23,6 +23,7 @@ endif()
 
 set(ENGINE_RENDERER_SOURCES
     renderer/backend/renderer.cpp
+    renderer/backend/shader_loader.cpp
     renderer/backend/vulkan/vulkan_renderer.cpp
     renderer/backend/opengl/opengl_renderer.cpp
 )
@@ -82,6 +83,7 @@ endif()
 
 set(ENGINE_RENDERER_HEADERS
     renderer/backend/renderer.hpp
+    renderer/backend/shader_loader.hpp
     renderer/backend/vulkan/vulkan_renderer.hpp
     renderer/backend/vulkan/vulkan_types.hpp
     renderer/backend/vulkan/vulkan_descriptors.hpp

@@ -53,6 +53,9 @@ class VulkanRenderer final : public RendererBackend {
     void pick_physical_device();
     void create_logical_device();
     void create_swapchain();
+    void create_image_views();
+    void create_graphics_pipeline();
+    void create_renderpass();
 
     bool is_physical_device_suitable(VkPhysicalDevice device);
 
@@ -69,11 +72,14 @@ class VulkanRenderer final : public RendererBackend {
     bool check_validation_layer_support();
     void destroy_debug_messenger();
 
+    VkShaderModule create_shader_module(const std::vector<char>& code);
+
     Platform::Window* m_Window;
 
     std::unique_ptr<VkState> m_vkState;
     std::vector<const char*> m_ValidationLayers;
     std::vector<const char*> m_DeviceExtensions;
+    std::vector<VkImageView> m_SwapchainImageViews;
 
     std::vector<VkImage> m_SwapchainImages;
     VkFormat m_SwapchainImageFormat;
@@ -85,5 +91,6 @@ class VulkanRenderer final : public RendererBackend {
     VkQueue m_PresentQueue;
     VkSurfaceKHR m_Surface;
     VkSwapchainKHR m_Swapchain;
+    VkPipelineLayout m_PipelineLayout;
 };
 }  // namespace Renderer
