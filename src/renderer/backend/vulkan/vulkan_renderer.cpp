@@ -98,7 +98,9 @@ void VulkanRenderer::shutdown() {
     if (!m_vkState || !m_Device || !m_PipelineLayout || !m_Swapchain || !m_Surface)
         return;
 
+    vkDestroyPipeline(m_Device, m_GraphicsPipeline, nullptr);
     vkDestroyPipelineLayout(m_Device, m_PipelineLayout, nullptr);
+    vkDestroyRenderPass(m_Device, m_RenderPass, nullptr);
 
     for (auto imageView : m_SwapchainImageViews) {
         vkDestroyImageView(m_Device, imageView, nullptr);
@@ -304,6 +306,36 @@ VkShaderModule VulkanRenderer::create_shader_module(const std::vector<char>& cod
     return shaderModule;
 }
 
+void VulkanRenderer::create_renderpass() {
+    VkAttachmentDescription colorAttachment{};
+    colorAttachment.format = m_SwapchainImageFormat;
+    colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+    colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+    colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+    colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+    colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+    VkAttachmentReference colorAttachmentRef{};
+    colorAttachmentRef.attachment = 0;
+    colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+    VkSubpassDescription subpass{};
+    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+    subpass.colorAttachmentCount = 1;
+    subpass.pColorAttachments = &colorAttachmentRef;
+
+    VkRenderPassCreateInfo renderPassInfo{};
+    renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+    renderPassInfo.attachmentCount = 1;
+    renderPassInfo.pAttachments = &colorAttachment;
+    renderPassInfo.subpassCount = 1;
+    renderPassInfo.pSubpasses = &subpass;
+
+    VULKAN_CHECK(vkCreateRenderPass(m_Device, &renderPassInfo, nullptr, &m_RenderPass));
+}
+
 void VulkanRenderer::create_graphics_pipeline() {
     auto vertShader = ShaderLoader::read_file("../../../assets/shaders/tri_vert.spv");
     auto fragShader = ShaderLoader::read_file("../../../assets/shaders/tri_frag.spv");
@@ -326,7 +358,7 @@ void VulkanRenderer::create_graphics_pipeline() {
     fragShaderStageInfo.pName = "main";
     fragShaderStageInfo.pSpecializationInfo = nullptr;
 
-    // VkPipelineShaderStageCreateInfo shaderStages[] = {vertShaderStageInfo, fragShaderStageInfo};
+    VkPipelineShaderStageCreateInfo shaderStages[] = {vertShaderStageInfo, fragShaderStageInfo};
 
     // Fixed functions:
 
@@ -405,6 +437,27 @@ void VulkanRenderer::create_graphics_pipeline() {
 
     VULKAN_CHECK(
         vkCreatePipelineLayout(m_Device, &pipelineLayoutCreateInfo, nullptr, &m_PipelineLayout));
+
+    VkGraphicsPipelineCreateInfo pipelineInfo{};
+    pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+    pipelineInfo.stageCount = 2;
+    pipelineInfo.pStages = shaderStages;
+    pipelineInfo.pVertexInputState = &vertexInputInfo;
+    pipelineInfo.pInputAssemblyState = &inputAssembly;
+    pipelineInfo.pViewportState = &viewportState;
+    pipelineInfo.pRasterizationState = &rasterizer;
+    pipelineInfo.pMultisampleState = &multisampling;
+    pipelineInfo.pDepthStencilState = nullptr;  // Optional
+    pipelineInfo.pColorBlendState = &colorBlending;
+    pipelineInfo.pDynamicState = &dynamicState;
+    pipelineInfo.layout = m_PipelineLayout;
+    pipelineInfo.renderPass = m_RenderPass;
+    pipelineInfo.subpass = 0;
+    pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
+    pipelineInfo.basePipelineIndex = -1;
+
+    VULKAN_CHECK(vkCreateGraphicsPipelines(m_Device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr,
+                                           &m_GraphicsPipeline));
 
     vkDestroyShaderModule(m_Device, fragSM, nullptr);
     vkDestroyShaderModule(m_Device, vertSM, nullptr);

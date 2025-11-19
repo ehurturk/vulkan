@@ -91,6 +91,8 @@ class VulkanRenderer final : public RendererBackend {
     VkQueue m_PresentQueue;
     VkSurfaceKHR m_Surface;
     VkSwapchainKHR m_Swapchain;
+    VkRenderPass m_RenderPass;
     VkPipelineLayout m_PipelineLayout;
+    VkPipeline m_GraphicsPipeline;
 };
 }  // namespace Renderer
