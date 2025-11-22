@@ -56,6 +56,9 @@ class VulkanRenderer final : public RendererBackend {
     void create_image_views();
     void create_graphics_pipeline();
     void create_renderpass();
+    void create_framebuffers();
+    void create_commandpool();
+    void create_commandbuffer();
 
     bool is_physical_device_suitable(VkPhysicalDevice device);
 
@@ -74,12 +77,15 @@ class VulkanRenderer final : public RendererBackend {
 
     VkShaderModule create_shader_module(const std::vector<char>& code);
 
+    void record_commandbuffer(VkCommandBuffer commandBuffer, U32 image_idx);
+
     Platform::Window* m_Window;
 
     std::unique_ptr<VkState> m_vkState;
     std::vector<const char*> m_ValidationLayers;
     std::vector<const char*> m_DeviceExtensions;
     std::vector<VkImageView> m_SwapchainImageViews;
+    std::vector<VkFramebuffer> m_SwapchainFramebuffers;
 
     std::vector<VkImage> m_SwapchainImages;
     VkFormat m_SwapchainImageFormat;
@@ -94,5 +100,7 @@ class VulkanRenderer final : public RendererBackend {
     VkRenderPass m_RenderPass;
     VkPipelineLayout m_PipelineLayout;
     VkPipeline m_GraphicsPipeline;
+    VkCommandPool m_CommandPool;
+    VkCommandBuffer m_CommandBuffer;
 };
 }  // namespace Renderer
