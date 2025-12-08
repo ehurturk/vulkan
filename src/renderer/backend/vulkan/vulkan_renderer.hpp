@@ -23,6 +23,7 @@ class VulkanRenderer final : public RendererBackend {
 
     void initialize(const RendererConfig& cfg) override;
     void shutdown() override;
+    void draw_frame() override;
 
    private:
     struct VkState {
@@ -59,6 +60,7 @@ class VulkanRenderer final : public RendererBackend {
     void create_framebuffers();
     void create_commandpool();
     void create_commandbuffer();
+    void create_sync_objects();
 
     bool is_physical_device_suitable(VkPhysicalDevice device);
 
@@ -102,5 +104,9 @@ class VulkanRenderer final : public RendererBackend {
     VkPipeline m_GraphicsPipeline;
     VkCommandPool m_CommandPool;
     VkCommandBuffer m_CommandBuffer;
+
+    VkSemaphore m_ImageAvailableSemaphore;
+    VkSemaphore m_RenderFinishedSemaphore;
+    VkFence m_InFlightFence;
 };
 }  // namespace Renderer

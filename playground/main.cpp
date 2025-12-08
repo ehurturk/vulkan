@@ -28,7 +28,7 @@ class MyApp : public Core::Application {
                            ", MS: " + std::to_string(getFrameTime()));
     }
 
-    void render() override {}
+    void render() override { m_Renderer->draw_frame(); }
 
     void cleanup() override {}
 

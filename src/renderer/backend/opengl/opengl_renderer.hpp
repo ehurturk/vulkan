@@ -11,5 +11,6 @@ class OpenGLRenderer final : public RendererBackend {
 
     void initialize(const RendererConfig& cfg) override;
     void shutdown() override;
+    void draw_frame() override;
 };
 };  // namespace Renderer

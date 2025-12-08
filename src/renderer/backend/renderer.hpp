@@ -18,6 +18,7 @@ class RendererBackend {
    public:
     virtual ~RendererBackend() = default;
     virtual void initialize(const RendererConfig&) = 0;
+    virtual void draw_frame() = 0;
     virtual void shutdown() = 0;
 };
 
@@ -33,6 +34,7 @@ class Renderer {
     Renderer& operator=(Renderer&&) noexcept = default;
 
     void initialize();
+    void draw_frame();
     void shutdown();
     [[nodiscard]] RendererBackendType backend_type() const noexcept;
 

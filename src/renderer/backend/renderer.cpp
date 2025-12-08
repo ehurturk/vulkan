@@ -41,4 +41,9 @@ RendererBackendType Renderer::backend_type() const noexcept {
     return m_Config.backend;
 }
 
+void Renderer::draw_frame() {
+    if (m_Backend)
+        m_Backend->draw_frame();
+}
+
 }  // namespace Renderer
