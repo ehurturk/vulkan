@@ -26,6 +26,8 @@ class VulkanRenderer final : public RendererBackend {
     void draw_frame() override;
 
    private:
+    static constexpr int MAX_FRAMES_IN_FLIGHT = 2;
+
     struct VkState {
         VkInstance instance = VK_NULL_HANDLE;
         VkInstanceCreateInfo createInfo;
@@ -59,7 +61,7 @@ class VulkanRenderer final : public RendererBackend {
     void create_renderpass();
     void create_framebuffers();
     void create_commandpool();
-    void create_commandbuffer();
+    void create_commandbuffers();
     void create_sync_objects();
 
     bool is_physical_device_suitable(VkPhysicalDevice device);
@@ -83,6 +85,8 @@ class VulkanRenderer final : public RendererBackend {
 
     Platform::Window* m_Window;
 
+    U32 m_CurrentFrame;
+
     std::unique_ptr<VkState> m_vkState;
     std::vector<const char*> m_ValidationLayers;
     std::vector<const char*> m_DeviceExtensions;
@@ -102,11 +106,13 @@ class VulkanRenderer final : public RendererBackend {
     VkRenderPass m_RenderPass;
     VkPipelineLayout m_PipelineLayout;
     VkPipeline m_GraphicsPipeline;
-    VkCommandPool m_CommandPool;
-    VkCommandBuffer m_CommandBuffer;
 
-    VkSemaphore m_ImageAvailableSemaphore;
-    VkSemaphore m_RenderFinishedSemaphore;
-    VkFence m_InFlightFence;
+    VkCommandPool m_CommandPool;
+    std::array<VkCommandBuffer, VulkanRenderer::MAX_FRAMES_IN_FLIGHT> m_CommandBuffers;
+
+    std::vector<VkSemaphore> m_ImageAvailableSemaphores;
+    std::vector<VkSemaphore> m_RenderFinishedSemaphores;
+
+    std::array<VkFence, VulkanRenderer::MAX_FRAMES_IN_FLIGHT> m_InFlightFences;
 };
 }  // namespace Renderer

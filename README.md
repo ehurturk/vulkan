@@ -56,3 +56,8 @@ I intend to build the core engine as a static library, and later link it with a 
   - Post effects
   - Deferred rendering
   - Clustered rendering
+
+## Logs
+
+#### Hello Triangle (8-12-2025):
+![triangle](./res/triangle.jpeg)

@@ -1,5 +1,4 @@
 #include "renderer.hpp"
-#include "platform/platform.hpp"
 #include "platform/window.hpp"
 #include "vulkan/vulkan_renderer.hpp"
 #include "opengl/opengl_renderer.hpp"
