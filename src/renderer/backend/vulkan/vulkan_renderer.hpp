@@ -10,11 +10,49 @@
 #include "renderer/backend/renderer.hpp"
 #include "defines.hpp"
 
+#include <glm/glm.hpp>
+
 namespace Platform {
 class Window;
 }
 
 namespace Renderer {
+
+struct Vertex {
+    glm::vec2 position;
+    glm::vec3 color;
+
+    static VkVertexInputBindingDescription get_binding_description() {
+        VkVertexInputBindingDescription bindingDescription{};
+        bindingDescription.binding = 0;
+        bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+        bindingDescription.stride = sizeof(Vertex);
+
+        return bindingDescription;
+    }
+
+    static std::array<VkVertexInputAttributeDescription, 2> get_attribute_description() {
+        std::array<VkVertexInputAttributeDescription, 2> attributeDescription{};
+
+        attributeDescription[0].binding = 0;
+        attributeDescription[0].location = 0;
+        attributeDescription[0].format = VK_FORMAT_R32G32_SFLOAT;
+        attributeDescription[0].offset = offsetof(Vertex, position);
+
+        attributeDescription[1].binding = 0;
+        attributeDescription[1].location = 1;
+        attributeDescription[1].format = VK_FORMAT_R32G32B32_SFLOAT;
+        attributeDescription[1].offset = offsetof(Vertex, color);
+
+        return attributeDescription;
+    }
+};
+
+std::array<Vertex, 3> vertices{
+    Vertex{glm::vec2{0.0f, -0.5f}, glm::vec3{1.0f, 0.0f, 0.0f}},
+    Vertex{glm::vec2{0.5f, 0.5f}, glm::vec3{0.0f, 1.0f, 0.0f}},
+    Vertex{glm::vec2{-0.5f, 0.5f}, glm::vec3{0.0f, 0.0f, 1.0f}},
+};
 
 class VulkanRenderer final : public RendererBackend {
    public:

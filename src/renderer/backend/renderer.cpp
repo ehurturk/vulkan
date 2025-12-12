@@ -32,6 +32,7 @@ void Renderer::initialize() {
     if (m_Backend)
         m_Backend->initialize(m_Config);
 }
+
 void Renderer::shutdown() {
     if (m_Backend)
         m_Backend->shutdown();
