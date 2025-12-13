@@ -21,6 +21,13 @@
 
 namespace Renderer {
 
+// TODO: either abstract away or remove this.
+std::array<Vertex, 3> vertices{
+    Vertex{glm::vec2{0.0f, -0.5f}, glm::vec3{1.0f, 1.0f, 1.0f}},
+    Vertex{glm::vec2{0.5f, 0.5f}, glm::vec3{0.0f, 1.0f, 0.0f}},
+    Vertex{glm::vec2{-0.5f, 0.5f}, glm::vec3{0.0f, 0.0f, 1.0f}},
+};
+
 static VKAPI_ATTR VkBool32 VKAPI_CALL
 DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT severity,
               VkDebugUtilsMessageTypeFlagsEXT,
@@ -102,6 +109,7 @@ void VulkanRenderer::initialize(const RendererConfig& cfg) {
     create_graphics_pipeline();
     create_framebuffers();
     create_commandpool();
+    create_vertex_buffer();
     create_commandbuffers();
     create_sync_objects();
 
@@ -138,6 +146,9 @@ void VulkanRenderer::shutdown() {
     }
 
     vkDestroySwapchainKHR(m_Device, m_Swapchain, nullptr);
+    vkDestroyBuffer(m_Device, m_VertexBuffer, nullptr);
+    vkFreeMemory(m_Device, m_VertexBufferMemory, nullptr);
+
     vkDestroyDevice(m_Device, nullptr);
 
     if (m_vkState->validation && m_vkState->debugMessenger) {
@@ -433,6 +444,7 @@ void VulkanRenderer::create_renderpass() {
 }
 
 void VulkanRenderer::create_graphics_pipeline() {
+    // TODO: abstract away the filepath thing, especially for resources such as shaders/textures.
     auto vertShader = ShaderLoader::read_file("../../../assets/shaders/tri_vert.spv");
     auto fragShader = ShaderLoader::read_file("../../../assets/shaders/tri_frag.spv");
 
@@ -459,10 +471,16 @@ void VulkanRenderer::create_graphics_pipeline() {
     // Fixed functions:
 
     // Vertex Input
+    auto bindingDescription = Vertex::get_binding_description();
+    auto attributeDescriptions = Vertex::get_attribute_description();
+
     VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
     vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    vertexInputInfo.vertexBindingDescriptionCount = 0;
-    vertexInputInfo.vertexAttributeDescriptionCount = 0;
+    vertexInputInfo.vertexBindingDescriptionCount = 1;
+    vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
+    vertexInputInfo.vertexAttributeDescriptionCount =
+        static_cast<U32>(attributeDescriptions.size());
+    vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
 
     // Input Assembly
     VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
@@ -593,6 +611,114 @@ void VulkanRenderer::create_commandpool() {
     VULKAN_CHECK(vkCreateCommandPool(m_Device, &createInfo, nullptr, &m_CommandPool));
 }
 
+void VulkanRenderer::create_vertex_buffer() {
+    VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
+
+    // Create a staging buffer to use it as a source in memory transfer operation
+    VkBuffer stagingBuffer;
+    VkDeviceMemory stagingBufferMemory;
+    create_buffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                  VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+                  stagingBuffer, stagingBufferMemory);
+
+    void* data;
+
+    vkMapMemory(m_Device, stagingBufferMemory, 0, bufferSize, 0, &data);
+    memcpy(data, vertices.data(), static_cast<size_t>(bufferSize));
+    vkUnmapMemory(m_Device, stagingBufferMemory);
+
+    // Make the vertex buffer a transfer destination for the memory transfer
+    create_buffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
+                  VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_VertexBuffer, m_VertexBufferMemory);
+
+    copy_buffer(stagingBuffer, m_VertexBuffer, bufferSize);
+
+    vkDestroyBuffer(m_Device, stagingBuffer, nullptr);
+    vkFreeMemory(m_Device, stagingBufferMemory, nullptr);
+}
+
+void VulkanRenderer::copy_buffer(VkBuffer src, VkBuffer dest, VkDeviceSize size) {
+    // Memory transfer operations are executed using command buffers - like drawing commands
+    VkCommandBufferAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocInfo.commandPool = m_CommandPool;
+    allocInfo.commandBufferCount = 1;
+
+    VkCommandBuffer commandBuffer{};
+
+    vkAllocateCommandBuffers(m_Device, &allocInfo, &commandBuffer);
+
+    VkCommandBufferBeginInfo beginInfo{};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+    vkBeginCommandBuffer(commandBuffer, &beginInfo);
+
+    VkBufferCopy copyRegion{};
+    copyRegion.srcOffset = 0;
+    copyRegion.dstOffset = 0;
+    copyRegion.size = size;
+
+    vkCmdCopyBuffer(commandBuffer, src, dest, 1, &copyRegion);
+
+    vkEndCommandBuffer(commandBuffer);
+
+    VkSubmitInfo submitInfo{};
+    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &commandBuffer;
+
+    // Unlike the draw commands, no synchronization is needed here - just transfer the buffers
+    // immediately
+    vkQueueSubmit(m_GraphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
+    vkQueueWaitIdle(m_GraphicsQueue);
+
+    vkFreeCommandBuffers(m_Device, m_CommandPool, 1, &commandBuffer);
+}
+
+void VulkanRenderer::create_buffer(VkDeviceSize size,
+                                   VkBufferUsageFlags usage,
+                                   VkMemoryPropertyFlags properties,
+                                   VkBuffer& buffer,
+                                   VkDeviceMemory& bufferMemory) {
+    VkBufferCreateInfo bufferInfo{};
+    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    bufferInfo.size = size;
+    bufferInfo.usage = usage;
+    bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    bufferInfo.flags = 0;
+
+    VULKAN_CHECK(vkCreateBuffer(m_Device, &bufferInfo, nullptr, &buffer));
+
+    VkMemoryRequirements memReqs{};
+    vkGetBufferMemoryRequirements(m_Device, buffer, &memReqs);
+
+    VkMemoryAllocateInfo allocInfo{};
+    allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocInfo.allocationSize = memReqs.size;
+    allocInfo.memoryTypeIndex = find_memory_type(memReqs.memoryTypeBits, properties);
+
+    VULKAN_CHECK(vkAllocateMemory(m_Device, &allocInfo, nullptr, &bufferMemory));
+
+    vkBindBufferMemory(m_Device, buffer, bufferMemory, 0);
+}
+
+// TODO: move down
+U32 VulkanRenderer::find_memory_type(U32 typeFilter, VkMemoryPropertyFlags properties) {
+    VkPhysicalDeviceMemoryProperties memProps{};
+    vkGetPhysicalDeviceMemoryProperties(m_PhysicalDevice, &memProps);
+
+    for (U32 i = 0; i < memProps.memoryTypeCount; ++i) {
+        if ((typeFilter & (1 << i)) &&
+            (memProps.memoryTypes[i].propertyFlags & properties) == properties) {
+            return i;
+        }
+    }
+
+    throw std::runtime_error("ERR: Failed to find suitable memory type!");
+}
+
 void VulkanRenderer::create_commandbuffers() {
     VkCommandBufferAllocateInfo allocateInfo{};
     allocateInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -627,6 +753,10 @@ void VulkanRenderer::record_commandbuffer(VkCommandBuffer commandBuffer, U32 ima
 
     vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_GraphicsPipeline);
 
+    VkBuffer vertexBuffers[] = {m_VertexBuffer};
+    VkDeviceSize offsets[] = {0};
+    vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+
     VkViewport viewport{};
     viewport.x = 0.0f;
     viewport.y = 0.0f;
@@ -641,7 +771,7 @@ void VulkanRenderer::record_commandbuffer(VkCommandBuffer commandBuffer, U32 ima
     scissor.extent = m_SwapchainExtent;
     vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-    vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+    vkCmdDraw(commandBuffer, static_cast<U32>(vertices.size()), 1, 0, 0);
 
     vkCmdEndRenderPass(commandBuffer);
     VULKAN_CHECK(vkEndCommandBuffer(commandBuffer));

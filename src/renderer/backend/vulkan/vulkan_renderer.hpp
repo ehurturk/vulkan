@@ -48,12 +48,6 @@ struct Vertex {
     }
 };
 
-std::array<Vertex, 3> vertices{
-    Vertex{glm::vec2{0.0f, -0.5f}, glm::vec3{1.0f, 0.0f, 0.0f}},
-    Vertex{glm::vec2{0.5f, 0.5f}, glm::vec3{0.0f, 1.0f, 0.0f}},
-    Vertex{glm::vec2{-0.5f, 0.5f}, glm::vec3{0.0f, 0.0f, 1.0f}},
-};
-
 class VulkanRenderer final : public RendererBackend {
    public:
     VulkanRenderer(Platform::Window* window);
@@ -99,6 +93,7 @@ class VulkanRenderer final : public RendererBackend {
     void create_renderpass();
     void create_framebuffers();
     void create_commandpool();
+    void create_vertex_buffer();
     void create_commandbuffers();
     void create_sync_objects();
 
@@ -120,6 +115,15 @@ class VulkanRenderer final : public RendererBackend {
     VkShaderModule create_shader_module(const std::vector<char>& code);
 
     void record_commandbuffer(VkCommandBuffer commandBuffer, U32 image_idx);
+
+    void create_buffer(VkDeviceSize size,
+                       VkBufferUsageFlags usage,
+                       VkMemoryPropertyFlags properties,
+                       VkBuffer& buffer,
+                       VkDeviceMemory& bufferMemory);
+    void copy_buffer(VkBuffer src, VkBuffer dest, VkDeviceSize size);
+
+    U32 find_memory_type(U32 typeFilter, VkMemoryPropertyFlags properties);
 
     Platform::Window* m_Window;
 
@@ -147,6 +151,9 @@ class VulkanRenderer final : public RendererBackend {
 
     VkCommandPool m_CommandPool;
     std::array<VkCommandBuffer, VulkanRenderer::MAX_FRAMES_IN_FLIGHT> m_CommandBuffers;
+
+    VkBuffer m_VertexBuffer;
+    VkDeviceMemory m_VertexBufferMemory;
 
     std::vector<VkSemaphore> m_ImageAvailableSemaphores;
     std::vector<VkSemaphore> m_RenderFinishedSemaphores;
