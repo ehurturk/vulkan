@@ -94,6 +94,7 @@ class VulkanRenderer final : public RendererBackend {
     void create_framebuffers();
     void create_commandpool();
     void create_vertex_buffer();
+    void create_index_buffer();
     void create_commandbuffers();
     void create_sync_objects();
 
@@ -154,6 +155,9 @@ class VulkanRenderer final : public RendererBackend {
 
     VkBuffer m_VertexBuffer;
     VkDeviceMemory m_VertexBufferMemory;
+
+    VkBuffer m_IndexBuffer;
+    VkDeviceMemory m_IndexBufferMemory;
 
     std::vector<VkSemaphore> m_ImageAvailableSemaphores;
     std::vector<VkSemaphore> m_RenderFinishedSemaphores;

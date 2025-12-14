@@ -22,11 +22,13 @@
 namespace Renderer {
 
 // TODO: either abstract away or remove this.
-std::array<Vertex, 3> vertices{
-    Vertex{glm::vec2{0.0f, -0.5f}, glm::vec3{1.0f, 1.0f, 1.0f}},
-    Vertex{glm::vec2{0.5f, 0.5f}, glm::vec3{0.0f, 1.0f, 0.0f}},
-    Vertex{glm::vec2{-0.5f, 0.5f}, glm::vec3{0.0f, 0.0f, 1.0f}},
-};
+const std::array<Vertex, 4> vertices = {
+    Vertex{glm::vec2{-0.5f, -0.5f}, glm::vec3{1.0f, 0.0f, 0.0f}},
+    Vertex{glm::vec2{0.5f, -0.5f}, glm::vec3{0.0f, 1.0f, 0.0f}},
+    Vertex{glm::vec2{0.5f, 0.5f}, glm::vec3{0.0f, 0.0f, 1.0f}},
+    Vertex{glm::vec2{-0.5f, 0.5f}, glm::vec3{1.0f, 1.0f, 1.0f}}};
+
+const std::array<U16, 6> indices = {0, 1, 2, 2, 3, 0};
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL
 DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT severity,
@@ -110,6 +112,7 @@ void VulkanRenderer::initialize(const RendererConfig& cfg) {
     create_framebuffers();
     create_commandpool();
     create_vertex_buffer();
+    create_index_buffer();
     create_commandbuffers();
     create_sync_objects();
 
@@ -146,6 +149,10 @@ void VulkanRenderer::shutdown() {
     }
 
     vkDestroySwapchainKHR(m_Device, m_Swapchain, nullptr);
+
+    vkDestroyBuffer(m_Device, m_IndexBuffer, nullptr);
+    vkFreeMemory(m_Device, m_IndexBufferMemory, nullptr);
+
     vkDestroyBuffer(m_Device, m_VertexBuffer, nullptr);
     vkFreeMemory(m_Device, m_VertexBufferMemory, nullptr);
 
@@ -637,6 +644,32 @@ void VulkanRenderer::create_vertex_buffer() {
     vkFreeMemory(m_Device, stagingBufferMemory, nullptr);
 }
 
+void VulkanRenderer::create_index_buffer() {
+    VkDeviceSize bufferSize = sizeof(indices[0]) * indices.size();
+
+    // Create a staging buffer to use it as a source in memory transfer operation
+    VkBuffer stagingBuffer;
+    VkDeviceMemory stagingBufferMemory;
+    create_buffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                  VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+                  stagingBuffer, stagingBufferMemory);
+
+    void* data;
+
+    vkMapMemory(m_Device, stagingBufferMemory, 0, bufferSize, 0, &data);
+    memcpy(data, indices.data(), static_cast<size_t>(bufferSize));
+    vkUnmapMemory(m_Device, stagingBufferMemory);
+
+    // Make the vertex buffer a transfer destination for the memory transfer
+    create_buffer(bufferSize, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
+                  VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_IndexBuffer, m_IndexBufferMemory);
+
+    copy_buffer(stagingBuffer, m_IndexBuffer, bufferSize);
+
+    vkDestroyBuffer(m_Device, stagingBuffer, nullptr);
+    vkFreeMemory(m_Device, stagingBufferMemory, nullptr);
+}
+
 void VulkanRenderer::copy_buffer(VkBuffer src, VkBuffer dest, VkDeviceSize size) {
     // Memory transfer operations are executed using command buffers - like drawing commands
     VkCommandBufferAllocateInfo allocInfo{};
@@ -755,7 +788,9 @@ void VulkanRenderer::record_commandbuffer(VkCommandBuffer commandBuffer, U32 ima
 
     VkBuffer vertexBuffers[] = {m_VertexBuffer};
     VkDeviceSize offsets[] = {0};
+
     vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+    vkCmdBindIndexBuffer(commandBuffer, m_IndexBuffer, 0, VK_INDEX_TYPE_UINT16);
 
     VkViewport viewport{};
     viewport.x = 0.0f;
@@ -771,7 +806,7 @@ void VulkanRenderer::record_commandbuffer(VkCommandBuffer commandBuffer, U32 ima
     scissor.extent = m_SwapchainExtent;
     vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-    vkCmdDraw(commandBuffer, static_cast<U32>(vertices.size()), 1, 0, 0);
+    vkCmdDrawIndexed(commandBuffer, static_cast<U32>(indices.size()), 1, 0, 0, 0);
 
     vkCmdEndRenderPass(commandBuffer);
     VULKAN_CHECK(vkEndCommandBuffer(commandBuffer));
