@@ -177,6 +177,8 @@ void VulkanRenderer::draw_frame() {
     m_ImageAvailableSemaphores.resize(m_SwapchainImages.size());
     m_RenderFinishedSemaphores.resize(m_SwapchainImages.size());
 
+    // wait for the frame's fence (i.e. wait until the rendered image is submitted to the graphics
+    // queue)
     vkWaitForFences(m_Device, 1, &m_InFlightFences[m_CurrentFrame], VK_TRUE, UINT64_MAX);
     vkResetFences(m_Device, 1, &m_InFlightFences[m_CurrentFrame]);
 
@@ -184,38 +186,49 @@ void VulkanRenderer::draw_frame() {
     vkAcquireNextImageKHR(m_Device, m_Swapchain, UINT64_MAX,
                           m_ImageAvailableSemaphores[m_CurrentFrame], VK_NULL_HANDLE, &imageIdx);
 
+    // Remove all previous commands from the command buffer
     vkResetCommandBuffer(m_CommandBuffers[m_CurrentFrame], /*VkCommandBufferResetFlagBits*/ 0);
+
+    // Record the draw commands to the current frame's command buffer for the image imageIdx
     record_commandbuffer(m_CommandBuffers[m_CurrentFrame], imageIdx);
+
+    // block until this is ready
+    std::array<VkSemaphore, 1> waitSemaphores{m_ImageAvailableSemaphores[m_CurrentFrame]};
+    // signal when render finished
+    std::array<VkSemaphore, 1> signalSemaphores{m_RenderFinishedSemaphores[imageIdx]};
+    // Wait in the VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT pipeline stage
+    VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
 
     VkSubmitInfo submitInfo{};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-
-    VkSemaphore waitSemaphores[] = {m_ImageAvailableSemaphores[m_CurrentFrame]};
-    VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
-    submitInfo.waitSemaphoreCount = 1;
-    submitInfo.pWaitSemaphores = waitSemaphores;
+    submitInfo.waitSemaphoreCount = waitSemaphores.size();
+    submitInfo.pWaitSemaphores = waitSemaphores.data();
+    submitInfo.signalSemaphoreCount = signalSemaphores.size();
+    submitInfo.pSignalSemaphores = signalSemaphores.data();
     submitInfo.pWaitDstStageMask = waitStages;
-
-    submitInfo.commandBufferCount = 1;
+    submitInfo.commandBufferCount = 1;  // recorded only 1 command buffer
     submitInfo.pCommandBuffers = &m_CommandBuffers[m_CurrentFrame];
 
-    VkSemaphore signalSemaphores[] = {m_RenderFinishedSemaphores[imageIdx]};
-    submitInfo.signalSemaphoreCount = 1;
-    submitInfo.pSignalSemaphores = signalSemaphores;
-
+    // Submit the command buffer to the graphics queue
+    // Signal fence when the draw commands in the command buffer are executed.
+    // This provides CPU-GPU synchronization.
     VULKAN_CHECK(vkQueueSubmit(m_GraphicsQueue, 1, &submitInfo, m_InFlightFences[m_CurrentFrame]));
 
+    // Now put the image rendered into the visible window (e.g. present it)
+    // wait on the signalSemaphore for this, as the draw commands MUST finish
+    // before the image is presented into the swapchain.
+    std::array<VkSwapchainKHR, 1> swapchains{m_Swapchain};
     VkPresentInfoKHR presentInfo{};
     presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-    presentInfo.waitSemaphoreCount = 1;
-    presentInfo.pWaitSemaphores = signalSemaphores;
-
-    VkSwapchainKHR swapchains[] = {m_Swapchain};
-    presentInfo.swapchainCount = 1;
-    presentInfo.pSwapchains = swapchains;
+    presentInfo.waitSemaphoreCount = signalSemaphores.size();
+    presentInfo.pWaitSemaphores = signalSemaphores.data();
+    presentInfo.swapchainCount = swapchains.size();
+    presentInfo.pSwapchains = swapchains.data();
     presentInfo.pImageIndices = &imageIdx;
     presentInfo.pResults = nullptr;
+    presentInfo.pNext = nullptr;
 
+    // Submit the present information to the presentation queue
     vkQueuePresentKHR(m_PresentQueue, &presentInfo);
 
     m_CurrentFrame = (m_CurrentFrame + 1) % VulkanRenderer::MAX_FRAMES_IN_FLIGHT;
@@ -763,52 +776,68 @@ void VulkanRenderer::create_commandbuffers() {
     VULKAN_CHECK(vkAllocateCommandBuffers(m_Device, &allocateInfo, m_CommandBuffers.data()));
 }
 
+// Record a command buffer for image id IMAGE_IDX to be drawn
 void VulkanRenderer::record_commandbuffer(VkCommandBuffer commandBuffer, U32 image_idx) {
     VkCommandBufferBeginInfo beginInfo{};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     beginInfo.flags = 0;
     beginInfo.pInheritanceInfo = nullptr;
 
+    // Begin writing to the command buffer
     VULKAN_CHECK(vkBeginCommandBuffer(commandBuffer, &beginInfo));
 
-    VkRenderPassBeginInfo renderPassBeginInfo{};
-    renderPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-    renderPassBeginInfo.renderPass = m_RenderPass;
-    renderPassBeginInfo.framebuffer = m_SwapchainFramebuffers[image_idx];
-    renderPassBeginInfo.renderArea.offset = {0, 0};
-    renderPassBeginInfo.renderArea.extent = m_SwapchainExtent;
+    {
+        // Initialize Info for Render Pass
+        VkClearValue clearColor = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
 
-    VkClearValue clearColor = {{{0.0f, 0.0f, 0.0f, 1.0f}}};
-    renderPassBeginInfo.clearValueCount = 1;
-    renderPassBeginInfo.pClearValues = &clearColor;
+        VkRenderPassBeginInfo renderPassBeginInfo{};
+        renderPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+        renderPassBeginInfo.renderPass = m_RenderPass;
+        renderPassBeginInfo.framebuffer = m_SwapchainFramebuffers[image_idx];
+        // render area offest & extent:
+        renderPassBeginInfo.renderArea.offset = {0, 0};
+        renderPassBeginInfo.renderArea.extent = m_SwapchainExtent;
+        // background clear color:
+        renderPassBeginInfo.clearValueCount = 1;
+        renderPassBeginInfo.pClearValues = &clearColor;
 
-    vkCmdBeginRenderPass(commandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+        // Begin Render Pass:
+        vkCmdBeginRenderPass(commandBuffer, &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_GraphicsPipeline);
+        // 1) Bind graphics pipeline
+        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_GraphicsPipeline);
 
-    VkBuffer vertexBuffers[] = {m_VertexBuffer};
-    VkDeviceSize offsets[] = {0};
+        // 2) Bind vertex & index buffers
+        VkBuffer vertexBuffers[] = {m_VertexBuffer};
+        VkDeviceSize offsets[] = {0};
 
-    vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
-    vkCmdBindIndexBuffer(commandBuffer, m_IndexBuffer, 0, VK_INDEX_TYPE_UINT16);
+        vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
+        vkCmdBindIndexBuffer(commandBuffer, m_IndexBuffer, 0, VK_INDEX_TYPE_UINT16);
 
-    VkViewport viewport{};
-    viewport.x = 0.0f;
-    viewport.y = 0.0f;
-    viewport.width = static_cast<float>(m_SwapchainExtent.width);
-    viewport.height = static_cast<float>(m_SwapchainExtent.height);
-    viewport.minDepth = 0.0f;
-    viewport.maxDepth = 1.0f;
-    vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+        // 3) Submit Viewport Details
+        VkViewport viewport{};
+        viewport.x = 0.0f;
+        viewport.y = 0.0f;
+        viewport.width = static_cast<float>(m_SwapchainExtent.width);
+        viewport.height = static_cast<float>(m_SwapchainExtent.height);
+        viewport.minDepth = 0.0f;
+        viewport.maxDepth = 1.0f;
+        vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
 
-    VkRect2D scissor{};
-    scissor.offset = {0, 0};
-    scissor.extent = m_SwapchainExtent;
-    vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+        // 4) Set Scissor
+        VkRect2D scissor{};
+        scissor.offset = {0, 0};
+        scissor.extent = m_SwapchainExtent;
+        vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-    vkCmdDrawIndexed(commandBuffer, static_cast<U32>(indices.size()), 1, 0, 0, 0);
+        // 5) Draw Indexed
+        vkCmdDrawIndexed(commandBuffer, static_cast<U32>(indices.size()), 1, 0, 0, 0);
 
-    vkCmdEndRenderPass(commandBuffer);
+        // 6) End Render Pass
+        vkCmdEndRenderPass(commandBuffer);
+    }
+
+    // End recording of the command buffer
     VULKAN_CHECK(vkEndCommandBuffer(commandBuffer));
 }
 
@@ -836,10 +865,11 @@ void VulkanRenderer::create_sync_objects() {
 void VulkanRenderer::create_logical_device() {
     QueueFamilyIndices indices = find_queue_families(m_PhysicalDevice);
 
-    std::vector<VkDeviceQueueCreateInfo> queueCreateInfos{};
     std::set<U32> uniqueQueueFamilies = {indices.graphicsFamily.value(),
                                          indices.presentFamily.value()};
 
+    std::vector<VkDeviceQueueCreateInfo> queueCreateInfos{};
+    queueCreateInfos.reserve(uniqueQueueFamilies.size());
     float queuePriority = 1.0f;
     for (U32 queueFamily : uniqueQueueFamilies) {
         VkDeviceQueueCreateInfo queueCreateInfo{};
@@ -981,13 +1011,19 @@ VkSurfaceFormatKHR VulkanRenderer::chooseSwapSurfaceFormat(
     return availableFormats[0];
 }
 
+// Choose a VkPresentModeKHR to base a swapchain's present mode to.
+// Settle for a VK_PRESENT_MODE_KHR (triple-buffering without hard vsync).
+// If no available present modes support VK_PRESENT_MODE_MAILBOX_KHR, settle
+// for a VK_PRESENT_MODE_FIFO_KHR (strong vsync present mode).
 VkPresentModeKHR VulkanRenderer::chooseSwapPresentMode(
     const std::vector<VkPresentModeKHR>& availablePresentModes) {
     for (const auto& availablePresentMode : availablePresentModes) {
         if (availablePresentMode == VK_PRESENT_MODE_MAILBOX_KHR)
             return availablePresentMode;
     }
-
+    LOG_WARN(
+        "No available present modes support VK_PRESENT_MODE_MAILBOX_KHR, falling back to "
+        "VK_PRESENT_MODE_FIFO_KHR!");
     return VK_PRESENT_MODE_FIFO_KHR;
 }
 

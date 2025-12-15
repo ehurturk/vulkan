@@ -100,6 +100,7 @@ class VulkanRenderer final : public RendererBackend {
 
     bool is_physical_device_suitable(VkPhysicalDevice device);
 
+    // TODO: cache the result into a member variable?
     QueueFamilyIndices find_queue_families(VkPhysicalDevice device);
     bool check_device_extension_support(VkPhysicalDevice device);
 
@@ -150,6 +151,10 @@ class VulkanRenderer final : public RendererBackend {
     VkPipelineLayout m_PipelineLayout;
     VkPipeline m_GraphicsPipeline;
 
+    // TODO: Abstract away command pool & command buffer to
+    // FrameData -> since only one thread at a time can record
+    // commands, for multithreaded command recording we will
+    // pair command buffer with its command allocator.
     VkCommandPool m_CommandPool;
     std::array<VkCommandBuffer, VulkanRenderer::MAX_FRAMES_IN_FLIGHT> m_CommandBuffers;
 
