@@ -1,6 +1,7 @@
 #include "vulkan_renderer.hpp"
 #include <algorithm>
 #include <set>
+#include <chrono>
 #include "core/logger.hpp"
 #include "core/assert.hpp"
 #include "../renderer.hpp"
@@ -9,6 +10,8 @@
 #include "renderer/backend/shader_loader.hpp"
 
 #include <vulkan/vulkan_core.h>
+
+#include <glm/gtc/matrix_transform.hpp>
 
 #define VULKAN_CHECK(x)                                                   \
     do {                                                                  \
@@ -108,11 +111,13 @@ void VulkanRenderer::initialize(const RendererConfig& cfg) {
     create_swapchain();
     create_image_views();
     create_renderpass();
+    create_descriptor_set_layout();
     create_graphics_pipeline();
     create_framebuffers();
     create_commandpool();
     create_vertex_buffer();
     create_index_buffer();
+    create_uniform_buffers();
     create_commandbuffers();
     create_sync_objects();
 
@@ -156,6 +161,13 @@ void VulkanRenderer::shutdown() {
     vkDestroyBuffer(m_Device, m_VertexBuffer, nullptr);
     vkFreeMemory(m_Device, m_VertexBufferMemory, nullptr);
 
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        vkDestroyBuffer(m_Device, m_UniformBuffers[i], nullptr);
+        vkFreeMemory(m_Device, m_UniformBuffersMemory[i], nullptr);
+    }
+
+    vkDestroyDescriptorSetLayout(m_Device, m_DescriptorSetLayout, nullptr);
+
     vkDestroyDevice(m_Device, nullptr);
 
     if (m_vkState->validation && m_vkState->debugMessenger) {
@@ -191,6 +203,8 @@ void VulkanRenderer::draw_frame() {
 
     // Record the draw commands to the current frame's command buffer for the image imageIdx
     record_commandbuffer(m_CommandBuffers[m_CurrentFrame], imageIdx);
+
+    update_uniform_buffer(m_CurrentFrame);
 
     // block until this is ready
     std::array<VkSemaphore, 1> waitSemaphores{m_ImageAvailableSemaphores[m_CurrentFrame]};
@@ -415,7 +429,7 @@ void VulkanRenderer::create_image_views() {
 VkShaderModule VulkanRenderer::create_shader_module(const std::vector<char>& code) {
     VkShaderModuleCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-    createInfo.codeSize = code.size();
+    createInfo.codeSize = code.size() * sizeof(char);
     createInfo.pCode = reinterpret_cast<const U32*>(code.data());
 
     VkShaderModule shaderModule;
@@ -463,27 +477,41 @@ void VulkanRenderer::create_renderpass() {
     VULKAN_CHECK(vkCreateRenderPass(m_Device, &renderPassInfo, nullptr, &m_RenderPass));
 }
 
+void VulkanRenderer::create_descriptor_set_layout() {
+    VkDescriptorSetLayoutBinding uboLayoutBinding;
+    uboLayoutBinding.binding = 0;
+    uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    uboLayoutBinding.descriptorCount = 1;
+    uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    uboLayoutBinding.pImmutableSamplers = nullptr;
+
+    VkDescriptorSetLayoutCreateInfo ci{};
+    ci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    ci.bindingCount = 1;
+    ci.pBindings = &uboLayoutBinding;
+
+    VULKAN_CHECK(vkCreateDescriptorSetLayout(m_Device, &ci, nullptr, &m_DescriptorSetLayout));
+}
+
 void VulkanRenderer::create_graphics_pipeline() {
     // TODO: abstract away the filepath thing, especially for resources such as shaders/textures.
-    auto vertShader = ShaderLoader::read_file("../../../assets/shaders/tri_vert.spv");
-    auto fragShader = ShaderLoader::read_file("../../../assets/shaders/tri_frag.spv");
+    auto shader = ShaderLoader::read_file("../../../assets/shaders/triangle.spv");
 
     // Shader modules && stage creations
-    VkShaderModule vertSM = create_shader_module(vertShader);
-    VkShaderModule fragSM = create_shader_module(fragShader);
+    VkShaderModule shaderModule = create_shader_module(shader);
 
     VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
     vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
-    vertShaderStageInfo.module = vertSM;
-    vertShaderStageInfo.pName = "main";
+    vertShaderStageInfo.module = shaderModule;
+    vertShaderStageInfo.pName = "vertMain";
     vertShaderStageInfo.pSpecializationInfo = nullptr;
 
     VkPipelineShaderStageCreateInfo fragShaderStageInfo{};
     fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-    fragShaderStageInfo.module = fragSM;
-    fragShaderStageInfo.pName = "main";
+    fragShaderStageInfo.module = shaderModule;
+    fragShaderStageInfo.pName = "fragMain";
     fragShaderStageInfo.pSpecializationInfo = nullptr;
 
     VkPipelineShaderStageCreateInfo shaderStages[] = {vertShaderStageInfo, fragShaderStageInfo};
@@ -557,15 +585,10 @@ void VulkanRenderer::create_graphics_pipeline() {
     dynamicState.pDynamicStates = dynamicStates.data();
 
     // Pipeline Layout
-    VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
-    pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    pipelineLayoutInfo.setLayoutCount = 0;
-    pipelineLayoutInfo.pushConstantRangeCount = 0;
-
     VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo{};
     pipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    pipelineLayoutCreateInfo.setLayoutCount = 0;
-    pipelineLayoutCreateInfo.pSetLayouts = nullptr;
+    pipelineLayoutCreateInfo.setLayoutCount = 1;
+    pipelineLayoutCreateInfo.pSetLayouts = &m_DescriptorSetLayout;
     pipelineLayoutCreateInfo.pushConstantRangeCount = 0;
     pipelineLayoutCreateInfo.pPushConstantRanges = nullptr;
 
@@ -593,8 +616,7 @@ void VulkanRenderer::create_graphics_pipeline() {
     VULKAN_CHECK(vkCreateGraphicsPipelines(m_Device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr,
                                            &m_GraphicsPipeline));
 
-    vkDestroyShaderModule(m_Device, fragSM, nullptr);
-    vkDestroyShaderModule(m_Device, vertSM, nullptr);
+    vkDestroyShaderModule(m_Device, shaderModule, nullptr);
 }
 
 void VulkanRenderer::create_framebuffers() {
@@ -683,6 +705,22 @@ void VulkanRenderer::create_index_buffer() {
     vkFreeMemory(m_Device, stagingBufferMemory, nullptr);
 }
 
+void VulkanRenderer::create_uniform_buffers() {
+    VkDeviceSize bufferSize = sizeof(UniformBufferObject);
+
+    m_UniformBuffers.resize(MAX_FRAMES_IN_FLIGHT);
+    m_UniformBuffersMemory.resize(MAX_FRAMES_IN_FLIGHT);
+    m_UniformBuffersMapped.resize(MAX_FRAMES_IN_FLIGHT);
+
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        create_buffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                      m_UniformBuffers[i], m_UniformBuffersMemory[i]);
+        vkMapMemory(m_Device, m_UniformBuffersMemory[i], 0, bufferSize, 0,
+                    &m_UniformBuffersMapped[i]);
+    }
+}
+
 void VulkanRenderer::copy_buffer(VkBuffer src, VkBuffer dest, VkDeviceSize size) {
     // Memory transfer operations are executed using command buffers - like drawing commands
     VkCommandBufferAllocateInfo allocInfo{};
@@ -721,6 +759,25 @@ void VulkanRenderer::copy_buffer(VkBuffer src, VkBuffer dest, VkDeviceSize size)
     vkQueueWaitIdle(m_GraphicsQueue);
 
     vkFreeCommandBuffers(m_Device, m_CommandPool, 1, &commandBuffer);
+}
+
+void VulkanRenderer::update_uniform_buffer(U32 imageIdx) {
+    static auto st = std::chrono::high_resolution_clock::now();
+
+    auto ct = std::chrono::high_resolution_clock::now();
+    float time = std::chrono::duration<float, std::chrono::seconds::period>(ct - st).count();
+
+    UniformBufferObject ubo{};
+    ubo.model =
+        glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f),
+                           glm::vec3(0.0f, 0.0f, 1.0f));
+    ubo.proj =
+        glm::perspective(glm::radians(45.0f),
+                         m_SwapchainExtent.width / (float)m_SwapchainExtent.height, 0.1f, 10.0f);
+    ubo.proj[1][1] *= -1;
+
+    memcpy(m_UniformBuffersMapped[m_CurrentFrame], &ubo, sizeof(ubo));
 }
 
 void VulkanRenderer::create_buffer(VkDeviceSize size,

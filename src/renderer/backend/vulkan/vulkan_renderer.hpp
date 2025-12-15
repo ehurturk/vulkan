@@ -48,6 +48,12 @@ struct Vertex {
     }
 };
 
+struct UniformBufferObject {
+    glm::mat4 model;
+    glm::mat4 view;
+    glm::mat4 proj;
+};
+
 class VulkanRenderer final : public RendererBackend {
    public:
     VulkanRenderer(Platform::Window* window);
@@ -89,12 +95,14 @@ class VulkanRenderer final : public RendererBackend {
     void create_logical_device();
     void create_swapchain();
     void create_image_views();
+    void create_descriptor_set_layout();
     void create_graphics_pipeline();
     void create_renderpass();
     void create_framebuffers();
     void create_commandpool();
     void create_vertex_buffer();
     void create_index_buffer();
+    void create_uniform_buffers();
     void create_commandbuffers();
     void create_sync_objects();
 
@@ -125,6 +133,8 @@ class VulkanRenderer final : public RendererBackend {
                        VkDeviceMemory& bufferMemory);
     void copy_buffer(VkBuffer src, VkBuffer dest, VkDeviceSize size);
 
+    void update_uniform_buffer(U32 imageIdx);
+
     U32 find_memory_type(U32 typeFilter, VkMemoryPropertyFlags properties);
 
     Platform::Window* m_Window;
@@ -151,6 +161,8 @@ class VulkanRenderer final : public RendererBackend {
     VkPipelineLayout m_PipelineLayout;
     VkPipeline m_GraphicsPipeline;
 
+    VkDescriptorSetLayout m_DescriptorSetLayout;
+
     // TODO: Abstract away command pool & command buffer to
     // FrameData -> since only one thread at a time can record
     // commands, for multithreaded command recording we will
@@ -163,6 +175,10 @@ class VulkanRenderer final : public RendererBackend {
 
     VkBuffer m_IndexBuffer;
     VkDeviceMemory m_IndexBufferMemory;
+
+    std::vector<VkBuffer> m_UniformBuffers;
+    std::vector<VkDeviceMemory> m_UniformBuffersMemory;
+    std::vector<void*> m_UniformBuffersMapped;
 
     std::vector<VkSemaphore> m_ImageAvailableSemaphores;
     std::vector<VkSemaphore> m_RenderFinishedSemaphores;
