@@ -12,7 +12,7 @@ std::unique_ptr<RendererBackend> CreateRendererBackend(Platform::Window* window,
                                                        RendererBackendType t) {
     switch (t) {
         case RendererBackendType::Vulkan:
-            return std::make_unique<VulkanRenderer>(window);
+            return std::make_unique<Vulkan::VulkanRenderer>(window);
         case RendererBackendType::OpenGL:
             return std::make_unique<OpenGLRenderer>();
         default:

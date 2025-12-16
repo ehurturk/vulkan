@@ -4,10 +4,11 @@
 #include <chrono>
 #include "core/logger.hpp"
 #include "core/assert.hpp"
-#include "../renderer.hpp"
+#include "renderer/backend/renderer.hpp"
+#include "renderer/backend/shader_loader.hpp"
+#include "renderer/backend/vulkan/vulkan_utils.hpp"
 #include "defines.hpp"
 #include "platform/window.hpp"
-#include "renderer/backend/shader_loader.hpp"
 
 #include <vulkan/vulkan_core.h>
 
@@ -22,7 +23,7 @@
         }                                                                 \
     } while (0)
 
-namespace Renderer {
+namespace Renderer::Vulkan {
 
 // TODO: either abstract away or remove this.
 const std::array<Vertex, 4> vertices = {
@@ -38,12 +39,13 @@ DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT severity,
               VkDebugUtilsMessageTypeFlagsEXT,
               const VkDebugUtilsMessengerCallbackDataEXT* data,
               void*) {
+    const char* msg = data->pMessage;
     if (severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) {
-        LOG_ERROR("[Vulkan] {}", data->pMessage);
+        LOG_ERROR("[Vulkan] {}", msg);
     } else if (severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) {
-        LOG_WARN("[Vulkan] {}", data->pMessage);
+        LOG_WARN("[Vulkan] {}", msg);
     } else {
-        LOG_INFO("[Vulkan] {}", data->pMessage);
+        LOG_INFO("[Vulkan] {}", msg);
     }
     return VK_FALSE;
 }
@@ -71,6 +73,37 @@ static void DestroyDebugUtilsMessengerEXT(VkInstance instance,
     }
 }
 
+static VkSurfaceFormatKHR choose_swap_surface_format(
+    const std::vector<VkSurfaceFormatKHR>& availableFormats) {
+    for (const auto& availableFormat : availableFormats) {
+        if (availableFormat.format == VK_FORMAT_B8G8R8A8_SRGB &&
+            availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
+            return availableFormat;
+        }
+    }
+    return availableFormats[0];
+}
+
+// Choose a VkPresentModeKHR to base a swapchain's present mode to.
+// Settle for a VK_PRESENT_MODE_KHR (triple-buffering without hard vsync).
+// If no available present modes support VK_PRESENT_MODE_MAILBOX_KHR, settle
+// for a VK_PRESENT_MODE_FIFO_KHR (strong vsync present mode).
+static VkPresentModeKHR choose_swap_present_mode(
+    const std::vector<VkPresentModeKHR>& availablePresentModes,
+    const VkPresentModeKHR preferred_present_mode = VK_PRESENT_MODE_MAILBOX_KHR) {
+    for (const auto& availablePresentMode : availablePresentModes) {
+        if (availablePresentMode == preferred_present_mode)
+            return availablePresentMode;
+    }
+
+    LOG_WARN(
+        "No available present modes support VK_PRESENT_MODE_MAILBOX_KHR, falling back to "
+        "{}!",
+        vkb::to_string(availablePresentModes[0]));
+
+    return availablePresentModes[0];
+}
+
 VulkanRenderer::VulkanRenderer(Platform::Window* window)
     : m_Window(window),
       m_CurrentFrame(0),
@@ -79,25 +112,32 @@ VulkanRenderer::VulkanRenderer(Platform::Window* window)
 #ifdef __PLATFORM_MACOS__
       m_DeviceExtensions{"VK_KHR_portability_subset", VK_KHR_SWAPCHAIN_EXTENSION_NAME},
 #endif
-      m_SwapchainImageViews{},
+      m_SwapchainImageFormat(),
+      m_SwapchainExtent(),
       m_Device(VK_NULL_HANDLE),
       m_PhysicalDevice(VK_NULL_HANDLE),
       m_GraphicsQueue(VK_NULL_HANDLE),
+      m_PresentQueue(nullptr),
       m_Surface(VK_NULL_HANDLE),
       m_Swapchain(VK_NULL_HANDLE),
       m_RenderPass(VK_NULL_HANDLE),
       m_PipelineLayout(VK_NULL_HANDLE),
       m_GraphicsPipeline(VK_NULL_HANDLE),
+      m_DescriptorSetLayout(VK_NULL_HANDLE),
       m_CommandPool(VK_NULL_HANDLE),
       m_CommandBuffers{},
-      m_ImageAvailableSemaphores{},
-      m_RenderFinishedSemaphores{},
+      m_VertexBuffer(VK_NULL_HANDLE),
+      m_VertexBufferMemory(VK_NULL_HANDLE),
+      m_IndexBuffer(VK_NULL_HANDLE),
+      m_IndexBufferMemory(VK_NULL_HANDLE),
+      m_DescriptorPool(VK_NULL_HANDLE),
+      m_DescriptorSets{},
       m_InFlightFences{} {
-    LOG_WARN("VULKAN IS INITIALIZED!");
+    LOG_INFO("VULKAN IS INITIALIZED!");
 }
 
 VulkanRenderer::~VulkanRenderer() {
-    // shutdown();
+    // FIXME: Leak! call shutdown (but avoid double freeing in shutdown)
 }
 
 void VulkanRenderer::initialize(const RendererConfig& cfg) {
@@ -118,6 +158,8 @@ void VulkanRenderer::initialize(const RendererConfig& cfg) {
     create_vertex_buffer();
     create_index_buffer();
     create_uniform_buffers();
+    create_descriptor_pool();
+    create_descriptor_sets();
     create_commandbuffers();
     create_sync_objects();
 
@@ -130,19 +172,17 @@ void VulkanRenderer::shutdown() {
 
     vkDeviceWaitIdle(m_Device);
 
-    for (int i = 0; i < (int)m_SwapchainImages.size(); i++) {
+    for (int i = 0; i < static_cast<int>(m_SwapchainImages.size()); i++) {
         vkDestroySemaphore(m_Device, m_ImageAvailableSemaphores[i], nullptr);
         vkDestroySemaphore(m_Device, m_RenderFinishedSemaphores[i], nullptr);
     }
 
-    for (int i = 0; i < VulkanRenderer::MAX_FRAMES_IN_FLIGHT; i++) {
+    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         vkDestroyFence(m_Device, m_InFlightFences[i], nullptr);
     }
 
-    vkDestroyCommandPool(m_Device, m_CommandPool, nullptr);
-
-    for (auto framebuf : m_SwapchainFramebuffers) {
-        vkDestroyFramebuffer(m_Device, framebuf, nullptr);
+    for (const auto& framebuffer : m_SwapchainFramebuffers) {
+        vkDestroyFramebuffer(m_Device, framebuffer, nullptr);
     }
 
     vkDestroyPipeline(m_Device, m_GraphicsPipeline, nullptr);
@@ -155,18 +195,21 @@ void VulkanRenderer::shutdown() {
 
     vkDestroySwapchainKHR(m_Device, m_Swapchain, nullptr);
 
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        vkDestroyBuffer(m_Device, m_UniformBuffers[i], nullptr);
+        vkFreeMemory(m_Device, m_UniformBuffersMemory[i], nullptr);
+    }
+
+    vkDestroyDescriptorPool(m_Device, m_DescriptorPool, nullptr);
+    vkDestroyDescriptorSetLayout(m_Device, m_DescriptorSetLayout, nullptr);
+
     vkDestroyBuffer(m_Device, m_IndexBuffer, nullptr);
     vkFreeMemory(m_Device, m_IndexBufferMemory, nullptr);
 
     vkDestroyBuffer(m_Device, m_VertexBuffer, nullptr);
     vkFreeMemory(m_Device, m_VertexBufferMemory, nullptr);
 
-    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        vkDestroyBuffer(m_Device, m_UniformBuffers[i], nullptr);
-        vkFreeMemory(m_Device, m_UniformBuffersMemory[i], nullptr);
-    }
-
-    vkDestroyDescriptorSetLayout(m_Device, m_DescriptorSetLayout, nullptr);
+    vkDestroyCommandPool(m_Device, m_CommandPool, nullptr);
 
     vkDestroyDevice(m_Device, nullptr);
 
@@ -202,7 +245,7 @@ void VulkanRenderer::draw_frame() {
     vkResetCommandBuffer(m_CommandBuffers[m_CurrentFrame], /*VkCommandBufferResetFlagBits*/ 0);
 
     // Record the draw commands to the current frame's command buffer for the image imageIdx
-    record_commandbuffer(m_CommandBuffers[m_CurrentFrame], imageIdx);
+    record_draw_commands(m_CommandBuffers[m_CurrentFrame], imageIdx);
 
     update_uniform_buffer(m_CurrentFrame);
 
@@ -325,8 +368,8 @@ void VulkanRenderer::create_surface() {
     m_Surface = m_Window->createSurface(m_vkState->instance);
 }
 
-VulkanRenderer::SwapchainSupportDetails VulkanRenderer::querySwapChainSupport(
-    VkPhysicalDevice device) {
+VulkanRenderer::SwapchainSupportDetails VulkanRenderer::query_swap_chain_support(
+    VkPhysicalDevice device) const {
     SwapchainSupportDetails details{};
     vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, m_Surface, &details.capabilities);
 
@@ -352,11 +395,11 @@ VulkanRenderer::SwapchainSupportDetails VulkanRenderer::querySwapChainSupport(
 }
 
 void VulkanRenderer::create_swapchain() {
-    SwapchainSupportDetails swapchainSup = querySwapChainSupport(m_PhysicalDevice);
+    SwapchainSupportDetails swapchainSup = query_swap_chain_support(m_PhysicalDevice);
 
-    VkSurfaceFormatKHR surfaceFormat = chooseSwapSurfaceFormat(swapchainSup.formats);
-    VkPresentModeKHR presentMode = chooseSwapPresentMode(swapchainSup.presentModes);
-    VkExtent2D extent = chooseSwapExtent(swapchainSup.capabilities);
+    VkSurfaceFormatKHR surfaceFormat = choose_swap_surface_format(swapchainSup.formats);
+    VkPresentModeKHR presentMode = choose_swap_present_mode(swapchainSup.presentModes);
+    VkExtent2D extent = choose_swap_extent(swapchainSup.capabilities);
 
     U32 imageCount = swapchainSup.capabilities.minImageCount + 1;
 
@@ -375,10 +418,11 @@ void VulkanRenderer::create_swapchain() {
     createInfo.imageArrayLayers = 1;
     createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
-    QueueFamilyIndices indices = find_queue_families(m_PhysicalDevice);
-    U32 queueFamilyIndices[] = {indices.graphicsFamily.value(), indices.presentFamily.value()};
+    QueueFamilyIndices queueIndices = find_queue_families(m_PhysicalDevice);
+    U32 queueFamilyIndices[] = {queueIndices.graphicsFamily.value(),
+                                queueIndices.presentFamily.value()};
 
-    if (indices.graphicsFamily != indices.presentFamily) {
+    if (queueIndices.graphicsFamily != queueIndices.presentFamily) {
         createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
         createInfo.queueFamilyIndexCount = 2;
         createInfo.pQueueFamilyIndices = queueFamilyIndices;
@@ -478,12 +522,12 @@ void VulkanRenderer::create_renderpass() {
 }
 
 void VulkanRenderer::create_descriptor_set_layout() {
-    VkDescriptorSetLayoutBinding uboLayoutBinding;
+    VkDescriptorSetLayoutBinding uboLayoutBinding{};
     uboLayoutBinding.binding = 0;
-    uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     uboLayoutBinding.descriptorCount = 1;
-    uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     uboLayoutBinding.pImmutableSamplers = nullptr;
+    uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
     VkDescriptorSetLayoutCreateInfo ci{};
     ci.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -550,7 +594,7 @@ void VulkanRenderer::create_graphics_pipeline() {
     rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
     rasterizer.lineWidth = 1.0f;
     rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
-    rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
+    rasterizer.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
     rasterizer.depthBiasEnable = VK_FALSE;
 
     // Multisampling
@@ -720,8 +764,57 @@ void VulkanRenderer::create_uniform_buffers() {
                     &m_UniformBuffersMapped[i]);
     }
 }
+void VulkanRenderer::create_descriptor_pool() {
+    VkDescriptorPoolSize poolSize{};
+    poolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    // Allocate one descriptor for every frame
+    poolSize.descriptorCount = static_cast<U32>(MAX_FRAMES_IN_FLIGHT);
 
-void VulkanRenderer::copy_buffer(VkBuffer src, VkBuffer dest, VkDeviceSize size) {
+    VkDescriptorPoolCreateInfo poolInfo{};
+    poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    poolInfo.poolSizeCount = 1;
+    poolInfo.pPoolSizes = &poolSize;
+    poolInfo.maxSets = static_cast<U32>(MAX_FRAMES_IN_FLIGHT);
+
+    VULKAN_CHECK(vkCreateDescriptorPool(m_Device, &poolInfo, nullptr, &m_DescriptorPool));
+}
+
+void VulkanRenderer::create_descriptor_sets() {
+    std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, m_DescriptorSetLayout);
+
+    VkDescriptorSetAllocateInfo allocate_info{};
+    allocate_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    allocate_info.descriptorPool = m_DescriptorPool;
+    allocate_info.descriptorSetCount = static_cast<U32>(MAX_FRAMES_IN_FLIGHT);
+    allocate_info.pSetLayouts = layouts.data();
+
+    VULKAN_CHECK(vkAllocateDescriptorSets(m_Device, &allocate_info, m_DescriptorSets.data()));
+
+    // Populate every descriptor for our uniform buffers
+    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        VkDescriptorBufferInfo bufferInfo{};
+        bufferInfo.buffer = m_UniformBuffers[i];
+        bufferInfo.offset = 0;
+        bufferInfo.range = sizeof(UniformBufferObject);
+
+        VkWriteDescriptorSet descriptorWrite{};
+        descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWrite.dstSet = m_DescriptorSets[i];
+        descriptorWrite.dstBinding = 0;
+        descriptorWrite.dstArrayElement = 0;
+        descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        descriptorWrite.descriptorCount = 1;
+        // Our descriptor is based on (uniform) buffers, so we will NOT use
+        // image descriptors nor buffer view descriptors.
+        descriptorWrite.pBufferInfo = &bufferInfo;
+        descriptorWrite.pImageInfo = nullptr;
+        descriptorWrite.pTexelBufferView = nullptr;
+
+        vkUpdateDescriptorSets(m_Device, 1, &descriptorWrite, 0, nullptr);
+    }
+}
+
+void VulkanRenderer::copy_buffer(VkBuffer src, VkBuffer dest, VkDeviceSize size) const {
     // Memory transfer operations are executed using command buffers - like drawing commands
     VkCommandBufferAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -761,30 +854,32 @@ void VulkanRenderer::copy_buffer(VkBuffer src, VkBuffer dest, VkDeviceSize size)
     vkFreeCommandBuffers(m_Device, m_CommandPool, 1, &commandBuffer);
 }
 
-void VulkanRenderer::update_uniform_buffer(U32 imageIdx) {
+void VulkanRenderer::update_uniform_buffer(U32 imageIdx) const {
+    // TODO: get absolute time / get engine boot time?
     static auto st = std::chrono::high_resolution_clock::now();
 
     auto ct = std::chrono::high_resolution_clock::now();
-    float time = std::chrono::duration<float, std::chrono::seconds::period>(ct - st).count();
+    float time = std::chrono::duration<float>(ct - st).count();
 
     UniformBufferObject ubo{};
     ubo.model =
         glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
     ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f),
                            glm::vec3(0.0f, 0.0f, 1.0f));
-    ubo.proj =
-        glm::perspective(glm::radians(45.0f),
-                         m_SwapchainExtent.width / (float)m_SwapchainExtent.height, 0.1f, 10.0f);
+    ubo.proj = glm::perspective(
+        glm::radians(45.0f),
+        static_cast<float>(m_SwapchainExtent.width) / static_cast<float>(m_SwapchainExtent.height),
+        0.1f, 10.0f);
     ubo.proj[1][1] *= -1;
 
-    memcpy(m_UniformBuffersMapped[m_CurrentFrame], &ubo, sizeof(ubo));
+    memcpy(m_UniformBuffersMapped[imageIdx], &ubo, sizeof(ubo));
 }
 
 void VulkanRenderer::create_buffer(VkDeviceSize size,
                                    VkBufferUsageFlags usage,
                                    VkMemoryPropertyFlags properties,
                                    VkBuffer& buffer,
-                                   VkDeviceMemory& bufferMemory) {
+                                   VkDeviceMemory& bufferMemory) const {
     VkBufferCreateInfo bufferInfo{};
     bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
     bufferInfo.size = size;
@@ -808,7 +903,7 @@ void VulkanRenderer::create_buffer(VkDeviceSize size,
 }
 
 // TODO: move down
-U32 VulkanRenderer::find_memory_type(U32 typeFilter, VkMemoryPropertyFlags properties) {
+U32 VulkanRenderer::find_memory_type(U32 typeFilter, VkMemoryPropertyFlags properties) const {
     VkPhysicalDeviceMemoryProperties memProps{};
     vkGetPhysicalDeviceMemoryProperties(m_PhysicalDevice, &memProps);
 
@@ -834,7 +929,7 @@ void VulkanRenderer::create_commandbuffers() {
 }
 
 // Record a command buffer for image id IMAGE_IDX to be drawn
-void VulkanRenderer::record_commandbuffer(VkCommandBuffer commandBuffer, U32 image_idx) {
+void VulkanRenderer::record_draw_commands(VkCommandBuffer commandBuffer, U32 image_idx) const {
     VkCommandBufferBeginInfo beginInfo{};
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     beginInfo.flags = 0;
@@ -887,10 +982,16 @@ void VulkanRenderer::record_commandbuffer(VkCommandBuffer commandBuffer, U32 ima
         scissor.extent = m_SwapchainExtent;
         vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-        // 5) Draw Indexed
-        vkCmdDrawIndexed(commandBuffer, static_cast<U32>(indices.size()), 1, 0, 0, 0);
+        // 5) Bind Descriptor Set
+        // NOTE: descriptor sets are not unique to graphics pipelines:
+        //         - We have to specify whether we bind descriptors to graphics or compute pipeline
+        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_PipelineLayout, 0,
+                                1, &m_DescriptorSets[m_CurrentFrame], 0, nullptr);
 
-        // 6) End Render Pass
+        // 6) Draw Indexed
+        vkCmdDrawIndexed(commandBuffer, indices.size(), 1, 0, 0, 0);
+
+        // 7) End Render Pass
         vkCmdEndRenderPass(commandBuffer);
     }
 
@@ -920,10 +1021,9 @@ void VulkanRenderer::create_sync_objects() {
 }
 
 void VulkanRenderer::create_logical_device() {
-    QueueFamilyIndices indices = find_queue_families(m_PhysicalDevice);
+    auto [graphicsFamily, presentFamily] = find_queue_families(m_PhysicalDevice);
 
-    std::set<U32> uniqueQueueFamilies = {indices.graphicsFamily.value(),
-                                         indices.presentFamily.value()};
+    std::set<U32> uniqueQueueFamilies = {graphicsFamily.value(), presentFamily.value()};
 
     std::vector<VkDeviceQueueCreateInfo> queueCreateInfos{};
     queueCreateInfos.reserve(uniqueQueueFamilies.size());
@@ -956,8 +1056,8 @@ void VulkanRenderer::create_logical_device() {
 
     VULKAN_CHECK(vkCreateDevice(m_PhysicalDevice, &createInfo, nullptr, &m_Device));
 
-    vkGetDeviceQueue(m_Device, indices.graphicsFamily.value(), 0, &m_GraphicsQueue);
-    vkGetDeviceQueue(m_Device, indices.presentFamily.value(), 0, &m_PresentQueue);
+    vkGetDeviceQueue(m_Device, graphicsFamily.value(), 0, &m_GraphicsQueue);
+    vkGetDeviceQueue(m_Device, presentFamily.value(), 0, &m_PresentQueue);
 }
 
 void VulkanRenderer::pick_physical_device() {
@@ -983,7 +1083,7 @@ void VulkanRenderer::pick_physical_device() {
 }
 
 VulkanRenderer::QueueFamilyIndices VulkanRenderer::find_queue_families(VkPhysicalDevice device) {
-    QueueFamilyIndices indices;
+    QueueFamilyIndices queueIndices;
 
     U32 queueFamilyCount = 0;
     vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
@@ -994,22 +1094,22 @@ VulkanRenderer::QueueFamilyIndices VulkanRenderer::find_queue_families(VkPhysica
     int i = 0;
     for (const auto& queueFamily : queueFamilies) {
         if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
-            indices.graphicsFamily = i;
+            queueIndices.graphicsFamily = i;
         }
 
         VkBool32 presentSupport = false;
         vkGetPhysicalDeviceSurfaceSupportKHR(device, i, m_Surface, &presentSupport);
 
         if (presentSupport) {
-            indices.presentFamily = i;
+            queueIndices.presentFamily = i;
         }
 
-        if (indices.is_complete())
+        if (queueIndices.is_complete())
             break;
         i++;
     }
 
-    return indices;
+    return queueIndices;
 }
 
 bool VulkanRenderer::check_device_extension_support(VkPhysicalDevice device) {
@@ -1031,15 +1131,15 @@ bool VulkanRenderer::check_device_extension_support(VkPhysicalDevice device) {
 // A physical device is suitable if extensions are supported and has a swapchain support for format
 // capabilities and present capabilities.
 bool VulkanRenderer::is_physical_device_suitable(VkPhysicalDevice device) {
-    QueueFamilyIndices indices = find_queue_families(device);
+    QueueFamilyIndices queueIndices = find_queue_families(device);
     bool extensionsSupported = check_device_extension_support(device);
     bool swapChainAdequate = false;
     if (extensionsSupported) {
-        SwapchainSupportDetails swapchainSupport = querySwapChainSupport(device);
+        SwapchainSupportDetails swapchainSupport = query_swap_chain_support(device);
         swapChainAdequate =
             !swapchainSupport.formats.empty() && !swapchainSupport.presentModes.empty();
     }
-    return indices.is_complete() && extensionsSupported && swapChainAdequate;
+    return queueIndices.is_complete() && extensionsSupported && swapChainAdequate;
 }
 
 std::vector<const char*> VulkanRenderer::getRequiredExtensions() {
@@ -1057,34 +1157,7 @@ std::vector<const char*> VulkanRenderer::getRequiredExtensions() {
     return extensions;
 }
 
-VkSurfaceFormatKHR VulkanRenderer::chooseSwapSurfaceFormat(
-    const std::vector<VkSurfaceFormatKHR>& availableFormats) {
-    for (const auto& availableFormat : availableFormats) {
-        if (availableFormat.format == VK_FORMAT_B8G8R8A8_SRGB &&
-            availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
-            return availableFormat;
-        }
-    }
-    return availableFormats[0];
-}
-
-// Choose a VkPresentModeKHR to base a swapchain's present mode to.
-// Settle for a VK_PRESENT_MODE_KHR (triple-buffering without hard vsync).
-// If no available present modes support VK_PRESENT_MODE_MAILBOX_KHR, settle
-// for a VK_PRESENT_MODE_FIFO_KHR (strong vsync present mode).
-VkPresentModeKHR VulkanRenderer::chooseSwapPresentMode(
-    const std::vector<VkPresentModeKHR>& availablePresentModes) {
-    for (const auto& availablePresentMode : availablePresentModes) {
-        if (availablePresentMode == VK_PRESENT_MODE_MAILBOX_KHR)
-            return availablePresentMode;
-    }
-    LOG_WARN(
-        "No available present modes support VK_PRESENT_MODE_MAILBOX_KHR, falling back to "
-        "VK_PRESENT_MODE_FIFO_KHR!");
-    return VK_PRESENT_MODE_FIFO_KHR;
-}
-
-VkExtent2D VulkanRenderer::chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities) {
+VkExtent2D VulkanRenderer::choose_swap_extent(const VkSurfaceCapabilitiesKHR& capabilities) {
     if (capabilities.currentExtent.width != std::numeric_limits<U32>::max()) {
         return capabilities.currentExtent;
     }
@@ -1114,4 +1187,4 @@ void VulkanRenderer::setup_debug_messenger() {
                                               &m_vkState->debugMessenger));
 }
 
-}  // namespace Renderer
+}  // namespace Renderer::Vulkan

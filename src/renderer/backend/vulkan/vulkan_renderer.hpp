@@ -10,13 +10,14 @@
 #include "renderer/backend/renderer.hpp"
 #include "defines.hpp"
 
+#define GLM_FORCE_RADIANS
 #include <glm/glm.hpp>
 
 namespace Platform {
 class Window;
 }
 
-namespace Renderer {
+namespace Renderer::Vulkan {
 
 struct Vertex {
     glm::vec2 position;
@@ -48,10 +49,15 @@ struct Vertex {
     }
 };
 
+// Alignment Requirements:
+// float = 4 bytes
+// glm::vec2 = 8 bytes
+// glm::vec3/glm::vec4 = 16 bytes
+// glm::mat4 = glm::vec4 =16 bytes
 struct UniformBufferObject {
-    glm::mat4 model;
-    glm::mat4 view;
-    glm::mat4 proj;
+    alignas(16) glm::mat4 model;
+    alignas(16) glm::mat4 view;
+    alignas(16) glm::mat4 proj;
 };
 
 class VulkanRenderer final : public RendererBackend {
@@ -103,6 +109,8 @@ class VulkanRenderer final : public RendererBackend {
     void create_vertex_buffer();
     void create_index_buffer();
     void create_uniform_buffers();
+    void create_descriptor_pool();
+    void create_descriptor_sets();
     void create_commandbuffers();
     void create_sync_objects();
 
@@ -112,30 +120,26 @@ class VulkanRenderer final : public RendererBackend {
     QueueFamilyIndices find_queue_families(VkPhysicalDevice device);
     bool check_device_extension_support(VkPhysicalDevice device);
 
-    SwapchainSupportDetails querySwapChainSupport(VkPhysicalDevice device);
-    VkSurfaceFormatKHR chooseSwapSurfaceFormat(
-        const std::vector<VkSurfaceFormatKHR>& availableFormats);
-    VkPresentModeKHR chooseSwapPresentMode(
-        const std::vector<VkPresentModeKHR>& availablePresentModes);
-    VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
+    SwapchainSupportDetails query_swap_chain_support(VkPhysicalDevice device) const;
+
+    VkExtent2D choose_swap_extent(const VkSurfaceCapabilitiesKHR& capabilities);
 
     bool check_validation_layer_support();
-    void destroy_debug_messenger();
 
     VkShaderModule create_shader_module(const std::vector<char>& code);
 
-    void record_commandbuffer(VkCommandBuffer commandBuffer, U32 image_idx);
+    void record_draw_commands(VkCommandBuffer commandBuffer, U32 image_idx) const;
 
     void create_buffer(VkDeviceSize size,
                        VkBufferUsageFlags usage,
                        VkMemoryPropertyFlags properties,
                        VkBuffer& buffer,
-                       VkDeviceMemory& bufferMemory);
-    void copy_buffer(VkBuffer src, VkBuffer dest, VkDeviceSize size);
+                       VkDeviceMemory& bufferMemory) const;
+    void copy_buffer(VkBuffer src, VkBuffer dest, VkDeviceSize size) const;
 
-    void update_uniform_buffer(U32 imageIdx);
+    void update_uniform_buffer(U32 imageIdx) const;
 
-    U32 find_memory_type(U32 typeFilter, VkMemoryPropertyFlags properties);
+    U32 find_memory_type(U32 typeFilter, VkMemoryPropertyFlags properties) const;
 
     Platform::Window* m_Window;
 
@@ -168,7 +172,7 @@ class VulkanRenderer final : public RendererBackend {
     // commands, for multithreaded command recording we will
     // pair command buffer with its command allocator.
     VkCommandPool m_CommandPool;
-    std::array<VkCommandBuffer, VulkanRenderer::MAX_FRAMES_IN_FLIGHT> m_CommandBuffers;
+    std::array<VkCommandBuffer, MAX_FRAMES_IN_FLIGHT> m_CommandBuffers;
 
     VkBuffer m_VertexBuffer;
     VkDeviceMemory m_VertexBufferMemory;
@@ -180,9 +184,12 @@ class VulkanRenderer final : public RendererBackend {
     std::vector<VkDeviceMemory> m_UniformBuffersMemory;
     std::vector<void*> m_UniformBuffersMapped;
 
+    VkDescriptorPool m_DescriptorPool;
+    std::array<VkDescriptorSet, MAX_FRAMES_IN_FLIGHT> m_DescriptorSets;
+
     std::vector<VkSemaphore> m_ImageAvailableSemaphores;
     std::vector<VkSemaphore> m_RenderFinishedSemaphores;
 
-    std::array<VkFence, VulkanRenderer::MAX_FRAMES_IN_FLIGHT> m_InFlightFences;
+    std::array<VkFence, MAX_FRAMES_IN_FLIGHT> m_InFlightFences;
 };
-}  // namespace Renderer
+}  // namespace Renderer::Vulkan
