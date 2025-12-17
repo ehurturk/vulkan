@@ -9,14 +9,15 @@
 struct GLFWwindow;
 
 namespace Platform {
-class GLFWWindow : public Window {
+class GLFWWindow final : public Window {
    public:
-    GLFWWindow(const Window::Properties& properties);
-    ~GLFWWindow();
+    explicit GLFWWindow(const Window::Properties& properties);
+    ~GLFWWindow() override;
 
     VkSurfaceKHR createSurface(VkInstance instance) override;
 
     void processEvents() override;
+    void waitForEvents() override;
 
     void close() override;
     bool shouldClose() override;
@@ -25,6 +26,8 @@ class GLFWWindow : public Window {
     float getContentScaleFactor() const override;
 
     const Extent getExtentPixel() const override;
+
+    Extent getFramebufferSize() const override;
 
     std::vector<const char*> getRequiredInstanceExtensions() const override;
 

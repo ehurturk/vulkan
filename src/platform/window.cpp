@@ -4,12 +4,10 @@ namespace Platform {
 
 Window::Window(const Properties& properties) : m_Properties{properties} {}
 
-void Window::processEvents() {}
-
-Window::Extent Window::resize(const Extent& new_extent) {
+Window::Extent Window::resize(const Extent& extent) {
     if (m_Properties.resizable) {
-        m_Properties.extent.width = new_extent.width;
-        m_Properties.extent.height = new_extent.height;
+        m_Properties.extent.width = extent.width;
+        m_Properties.extent.height = extent.height;
     }
 
     return m_Properties.extent;

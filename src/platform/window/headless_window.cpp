@@ -23,6 +23,10 @@ void HeadlessWindow::processEvents() {
     // TODO: Implement
 }
 
+void HeadlessWindow::waitForEvents() {
+    // TODO: implement
+}
+
 void HeadlessWindow::close() {
     // TODO: Implement
 }
@@ -45,6 +49,11 @@ float HeadlessWindow::getContentScaleFactor() const {
 const HeadlessWindow::Extent HeadlessWindow::getExtentPixel() const {
     return {.width = 0, .height = 0};
 }
+
+Window::Extent HeadlessWindow::getFramebufferSize() const {
+    return {.width = 0, .height = 0};
+}
+
 std::vector<const char*> HeadlessWindow::getRequiredInstanceExtensions() const {
     // TODO: Implement
     return {};

@@ -6,19 +6,22 @@
 #include <vector>
 
 namespace Platform {
-class HeadlessWindow : public Window {
+class HeadlessWindow final : public Window {
    public:
     HeadlessWindow();
-    ~HeadlessWindow();
+    ~HeadlessWindow() override;
 
     VkSurfaceKHR createSurface(VkInstance instance) override;
 
     void processEvents() override;
+    void waitForEvents() override;
 
     void close() override;
     bool shouldClose() override;
 
     const Extent getExtentPixel() const override;
+
+    Extent getFramebufferSize() const override;
 
     float getDPI() const override;
     float getContentScaleFactor() const override;

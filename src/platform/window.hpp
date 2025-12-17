@@ -44,10 +44,12 @@ class Window {
     virtual ~Window() = default;
 
     /* Vulkan Surface */
-    virtual VkSurfaceKHR createSurface(VkInstance instance) = 0;
+    virtual VkSurfaceKHR createSurface(
+        VkInstance instance) = 0;  // TODO: Abstract the surface into a API-Agnostic surface type?
     virtual std::vector<const char*> getRequiredInstanceExtensions() const = 0;
 
-    virtual void processEvents();
+    virtual void processEvents() = 0;
+    virtual void waitForEvents() = 0;
 
     virtual void close() = 0;
     virtual bool shouldClose() = 0;
@@ -56,10 +58,11 @@ class Window {
     virtual float getContentScaleFactor() const;
 
     virtual void setTitle(const std::string& title) { m_Properties.title = title; }
-    inline std::string getTitle() const { return m_Properties.title; }
+    std::string getTitle() const { return m_Properties.title; }
 
     Extent resize(const Extent& extent);
 
+    // TODO: Graphics API abstraction for VkDisplayPresentInfoKHR
     virtual bool getDisplayPresentInfo(VkDisplayPresentInfoKHR* info,
                                        U32 src_width,
                                        U32 src_height) const;
@@ -67,9 +70,11 @@ class Window {
     const Extent& getExtent() const;
     virtual const Extent getExtentPixel() const = 0;
 
+    virtual Extent getFramebufferSize() const = 0;
+
     Mode getWindowMode() const;
 
-    inline const Properties& getProperties() const { return m_Properties; }
+    const Properties& getProperties() const { return m_Properties; }
 
    protected:
     Properties m_Properties;

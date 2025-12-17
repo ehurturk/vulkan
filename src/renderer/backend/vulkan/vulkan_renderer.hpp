@@ -3,6 +3,7 @@
 #include <memory>
 #include <vector>
 #include <optional>
+#include <span>
 
 #include <vulkan/vulkan.h>
 #include <vulkan/vulkan_core.h>
@@ -11,6 +12,7 @@
 #include "defines.hpp"
 
 #define GLM_FORCE_RADIANS
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
 
 namespace Platform {
@@ -20,7 +22,7 @@ class Window;
 namespace Renderer::Vulkan {
 
 struct Vertex {
-    glm::vec2 position;
+    glm::vec3 position;
     glm::vec3 color;
     glm::vec2 texCoord;
 
@@ -38,7 +40,7 @@ struct Vertex {
 
         attributeDescriptions[0].binding = 0;
         attributeDescriptions[0].location = 0;
-        attributeDescriptions[0].format = VK_FORMAT_R32G32_SFLOAT;
+        attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
         attributeDescriptions[0].offset = offsetof(Vertex, position);
 
         attributeDescriptions[1].binding = 0;
@@ -98,20 +100,19 @@ class VulkanRenderer final : public RendererBackend {
         std::vector<VkPresentModeKHR> presentModes;
     };
 
-    std::vector<const char*> getRequiredExtensions() const;
-
     void create_instance();
     void setup_debug_messenger();
     void create_surface();
     void pick_physical_device();
     void create_logical_device();
     void create_swapchain();
-    void create_image_views();
+    void create_swapchain_image_views();
     void create_descriptor_set_layout();
     void create_graphics_pipeline();
-    void create_renderpass();
+    void create_render_pass();
     void create_framebuffers();
     void create_commandpool();
+    void create_depth_resources();
     void create_texture_image();
     void create_texture_image_view();
     void create_texture_sampler();
@@ -120,23 +121,13 @@ class VulkanRenderer final : public RendererBackend {
     void create_uniform_buffers();
     void create_descriptor_pool();
     void create_descriptor_sets();
-    void create_commandbuffers();
+    void create_command_buffers();
     void create_sync_objects();
-
-    bool is_physical_device_suitable(VkPhysicalDevice device);
-
-    // TODO: cache the result into a member variable?
-    QueueFamilyIndices find_queue_families(VkPhysicalDevice device);
-    bool check_device_extension_support(VkPhysicalDevice device);
-
-    SwapchainSupportDetails query_swap_chain_support(VkPhysicalDevice device) const;
-
-    VkExtent2D choose_swap_extent(const VkSurfaceCapabilitiesKHR& capabilities);
-
-    bool check_validation_layer_support();
 
     VkShaderModule create_shader_module(const std::vector<char>& code) const;
 
+    void cleanup_swapchain();
+    void recreate_swapchain();
     void record_draw_commands(VkCommandBuffer commandBuffer, U32 image_idx) const;
 
     void create_buffer(VkDeviceSize size,
@@ -152,8 +143,7 @@ class VulkanRenderer final : public RendererBackend {
 
     void update_uniform_buffer(U32 imageIdx) const;
 
-    VkImageView create_image_view(VkImage image, VkFormat format);
-
+    VkImageView create_image_view(VkImage image, VkFormat format, VkImageAspectFlags flags);
     void create_image(uint32_t width,
                       uint32_t height,
                       VkFormat format,
@@ -162,7 +152,6 @@ class VulkanRenderer final : public RendererBackend {
                       VkMemoryPropertyFlags properties,
                       VkImage& image,
                       VkDeviceMemory& imageMemory);
-
     void transition_image_layout(VkImage image,
                                  VkFormat format,
                                  VkImageLayout oldLayout,
@@ -170,7 +159,19 @@ class VulkanRenderer final : public RendererBackend {
 
     void copy_buffer_to_image(VkBuffer buffer, VkImage image, U32 width, U32 height);
 
+    std::vector<const char*> getRequiredExtensions() const;
+    bool is_physical_device_suitable(VkPhysicalDevice device);
+    // TODO: cache the result into a member variable?
+    QueueFamilyIndices find_queue_families(VkPhysicalDevice device);
+    bool check_device_extension_support(VkPhysicalDevice device);
+    SwapchainSupportDetails query_swap_chain_support(VkPhysicalDevice device) const;
+    VkExtent2D choose_swap_extent(const VkSurfaceCapabilitiesKHR& capabilities);
+    bool check_validation_layer_support();
     U32 find_memory_type(U32 typeFilter, VkMemoryPropertyFlags properties) const;
+    VkFormat find_supported_format(std::span<const VkFormat> candidates,
+                                   VkImageTiling tiling,
+                                   VkFormatFeatureFlags features) const;
+    VkFormat find_depth_format() const;
 
     Platform::Window* m_Window;
 
@@ -198,10 +199,6 @@ class VulkanRenderer final : public RendererBackend {
 
     VkDescriptorSetLayout m_DescriptorSetLayout;
 
-    // TODO: Abstract away command pool & command buffer to
-    // FrameData -> since only one thread at a time can record
-    // commands, for multithreaded command recording we will
-    // pair command buffer with its command allocator.
     VkCommandPool m_CommandPool;
     std::array<VkCommandBuffer, MAX_FRAMES_IN_FLIGHT> m_CommandBuffers;
 
@@ -218,11 +215,15 @@ class VulkanRenderer final : public RendererBackend {
     VkDescriptorPool m_DescriptorPool;
     std::array<VkDescriptorSet, MAX_FRAMES_IN_FLIGHT> m_DescriptorSets;
 
+    VkSampler m_TextureSampler;
+
     VkImage m_TextureImage;
     VkDeviceMemory m_TextureImageMemory;
-
     VkImageView m_TextureImageView;
-    VkSampler m_TextureSampler;
+
+    VkImage m_DepthImage;
+    VkDeviceMemory m_DepthImageMemory;
+    VkImageView m_DepthImageView;
 
     std::vector<VkSemaphore> m_ImageAvailableSemaphores;
     std::vector<VkSemaphore> m_RenderFinishedSemaphores;

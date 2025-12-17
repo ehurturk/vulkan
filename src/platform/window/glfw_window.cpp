@@ -15,7 +15,7 @@ GLFWWindow::GLFWWindow(const Window::Properties& properties) : Window(properties
 
     // Initialize GLFW window
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+    glfwWindowHint(GLFW_RESIZABLE, properties.resizable);
 
     // GLFWmonitor* primary = glfwGetPrimaryMonitor();
     m_Window = glfwCreateWindow(m_Properties.extent.width, m_Properties.extent.height,
@@ -46,6 +46,9 @@ VkSurfaceKHR GLFWWindow::createSurface(VkInstance instance) {
 void GLFWWindow::processEvents() {
     glfwPollEvents();
 }
+void GLFWWindow::waitForEvents() {
+    glfwWaitEvents();
+}
 
 void GLFWWindow::close() {
     glfwDestroyWindow(m_Window);
@@ -71,6 +74,13 @@ float GLFWWindow::getContentScaleFactor() const {
 const GLFWWindow::Extent GLFWWindow::getExtentPixel() const {
     int width, height;
     glfwGetFramebufferSize(m_Window, &width, &height);
+    return {.width = static_cast<U32>(width), .height = static_cast<U32>(height)};
+}
+
+Window::Extent GLFWWindow::getFramebufferSize() const {
+    int width = 0, height = 0;
+    glfwGetFramebufferSize(m_Window, &width, &height);
+
     return {.width = static_cast<U32>(width), .height = static_cast<U32>(height)};
 }
 
