@@ -61,3 +61,6 @@ I intend to build the core engine as a static library, and later link it with a 
 
 #### Hello Triangle (8-12-2025):
 ![triangle](./res/triangle.jpeg)
+
+#### Spinning Texture (18-12-2025):
+![texture](res/textures.png)

@@ -22,6 +22,7 @@ namespace Renderer::Vulkan {
 struct Vertex {
     glm::vec2 position;
     glm::vec3 color;
+    glm::vec2 texCoord;
 
     static VkVertexInputBindingDescription get_binding_description() {
         VkVertexInputBindingDescription bindingDescription{};
@@ -32,20 +33,25 @@ struct Vertex {
         return bindingDescription;
     }
 
-    static std::array<VkVertexInputAttributeDescription, 2> get_attribute_description() {
-        std::array<VkVertexInputAttributeDescription, 2> attributeDescription{};
+    static std::array<VkVertexInputAttributeDescription, 3> get_attribute_description() {
+        std::array<VkVertexInputAttributeDescription, 3> attributeDescriptions{};
 
-        attributeDescription[0].binding = 0;
-        attributeDescription[0].location = 0;
-        attributeDescription[0].format = VK_FORMAT_R32G32_SFLOAT;
-        attributeDescription[0].offset = offsetof(Vertex, position);
+        attributeDescriptions[0].binding = 0;
+        attributeDescriptions[0].location = 0;
+        attributeDescriptions[0].format = VK_FORMAT_R32G32_SFLOAT;
+        attributeDescriptions[0].offset = offsetof(Vertex, position);
 
-        attributeDescription[1].binding = 0;
-        attributeDescription[1].location = 1;
-        attributeDescription[1].format = VK_FORMAT_R32G32B32_SFLOAT;
-        attributeDescription[1].offset = offsetof(Vertex, color);
+        attributeDescriptions[1].binding = 0;
+        attributeDescriptions[1].location = 1;
+        attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
+        attributeDescriptions[1].offset = offsetof(Vertex, color);
 
-        return attributeDescription;
+        attributeDescriptions[2].binding = 0;
+        attributeDescriptions[2].location = 2;
+        attributeDescriptions[2].format = VK_FORMAT_R32G32_SFLOAT;
+        attributeDescriptions[2].offset = offsetof(Vertex, texCoord);
+
+        return attributeDescriptions;
     }
 };
 
@@ -83,7 +89,7 @@ class VulkanRenderer final : public RendererBackend {
         std::optional<U32> graphicsFamily;
         std::optional<U32> presentFamily;
 
-        bool is_complete() { return graphicsFamily.has_value() && presentFamily.has_value(); }
+        bool is_complete() const { return graphicsFamily.has_value() && presentFamily.has_value(); }
     };
 
     struct SwapchainSupportDetails {
@@ -92,7 +98,7 @@ class VulkanRenderer final : public RendererBackend {
         std::vector<VkPresentModeKHR> presentModes;
     };
 
-    std::vector<const char*> getRequiredExtensions();
+    std::vector<const char*> getRequiredExtensions() const;
 
     void create_instance();
     void setup_debug_messenger();
@@ -106,6 +112,9 @@ class VulkanRenderer final : public RendererBackend {
     void create_renderpass();
     void create_framebuffers();
     void create_commandpool();
+    void create_texture_image();
+    void create_texture_image_view();
+    void create_texture_sampler();
     void create_vertex_buffer();
     void create_index_buffer();
     void create_uniform_buffers();
@@ -126,7 +135,7 @@ class VulkanRenderer final : public RendererBackend {
 
     bool check_validation_layer_support();
 
-    VkShaderModule create_shader_module(const std::vector<char>& code);
+    VkShaderModule create_shader_module(const std::vector<char>& code) const;
 
     void record_draw_commands(VkCommandBuffer commandBuffer, U32 image_idx) const;
 
@@ -135,9 +144,31 @@ class VulkanRenderer final : public RendererBackend {
                        VkMemoryPropertyFlags properties,
                        VkBuffer& buffer,
                        VkDeviceMemory& bufferMemory) const;
-    void copy_buffer(VkBuffer src, VkBuffer dest, VkDeviceSize size) const;
+
+    VkCommandBuffer begin_single_time_commands();
+    void end_single_time_commands(VkCommandBuffer commandBuffer);
+
+    void copy_buffer(VkBuffer src, VkBuffer dest, VkDeviceSize size);
 
     void update_uniform_buffer(U32 imageIdx) const;
+
+    VkImageView create_image_view(VkImage image, VkFormat format);
+
+    void create_image(uint32_t width,
+                      uint32_t height,
+                      VkFormat format,
+                      VkImageTiling tiling,
+                      VkImageUsageFlags usage,
+                      VkMemoryPropertyFlags properties,
+                      VkImage& image,
+                      VkDeviceMemory& imageMemory);
+
+    void transition_image_layout(VkImage image,
+                                 VkFormat format,
+                                 VkImageLayout oldLayout,
+                                 VkImageLayout newLayout);
+
+    void copy_buffer_to_image(VkBuffer buffer, VkImage image, U32 width, U32 height);
 
     U32 find_memory_type(U32 typeFilter, VkMemoryPropertyFlags properties) const;
 
@@ -186,6 +217,12 @@ class VulkanRenderer final : public RendererBackend {
 
     VkDescriptorPool m_DescriptorPool;
     std::array<VkDescriptorSet, MAX_FRAMES_IN_FLIGHT> m_DescriptorSets;
+
+    VkImage m_TextureImage;
+    VkDeviceMemory m_TextureImageMemory;
+
+    VkImageView m_TextureImageView;
+    VkSampler m_TextureSampler;
 
     std::vector<VkSemaphore> m_ImageAvailableSemaphores;
     std::vector<VkSemaphore> m_RenderFinishedSemaphores;

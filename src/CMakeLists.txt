@@ -95,6 +95,10 @@ set(ENGINE_RENDERER_HEADERS
         renderer/backend/opengl/opengl_renderer.hpp
 )
 
+set(ENGINE_EXTERN_HEADERS
+        ../extern/stb_image.h
+)
+
 set(ENGINE_HEADERS
         ${ENGINE_CORE_HEADERS}
         ${ENGINE_PLATFORM_HEADERS}
@@ -108,11 +112,13 @@ add_library(engine STATIC)
 target_sources(engine
         PRIVATE
         ${ENGINE_SOURCES}
+        ${ENGINE_EXTERN_HEADERS}
         PUBLIC
         FILE_SET HEADERS
         BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}
         FILES ${ENGINE_HEADERS}
 )
+
 
 target_include_directories(engine
         PUBLIC
