@@ -19,7 +19,7 @@
       }
     },
     {
-      "name": "debug",
+      "name": "Debug",
       "displayName": "Debug Build",
       "description": "Debug build with symbols and validation layers",
       "inherits": "base",
@@ -29,7 +29,7 @@
       }
     },
     {
-      "name": "release",
+      "name": "Release",
       "displayName": "Release Build",
       "description": "Optimized release build",
       "inherits": "base",
@@ -39,7 +39,7 @@
       }
     },
     {
-      "name": "relwithdebinfo",
+      "name": "RelWithDebInfo",
       "displayName": "Release w/ Debug Info",
       "description": "Optimized build with debug symbols",
       "inherits": "base",
@@ -50,16 +50,16 @@
   ],
   "buildPresets": [
     {
-      "name": "debug",
-      "configurePreset": "debug"
+      "name": "Debug",
+      "configurePreset": "Debug"
     },
     {
-      "name": "release",
-      "configurePreset": "release"
+      "name": "Release",
+      "configurePreset": "Release"
     },
     {
-      "name": "relwithdebinfo",
-      "configurePreset": "relwithdebinfo"
+      "name": "RelWithDebInfo",
+      "configurePreset": "RelWithDebInfo"
     }
   ]
 }

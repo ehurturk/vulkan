@@ -17,6 +17,9 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "../extern/stb_image.h"
 
+#define TINYOBJLOADER_IMPLEMENTATION
+#include "../extern/tiny_obj_loader.h"
+
 #define VULKAN_CHECK(x)                                                   \
     do {                                                                  \
         VkResult _r = (x);                                                \
@@ -27,20 +30,6 @@
     } while (0)
 
 namespace Renderer::Vulkan {
-
-// TODO: either abstract away or remove this.
-constexpr std::array<Vertex, 8> vertices = {
-    Vertex{glm::vec3{-0.5f, -0.5f, 0.0f}, glm::vec3{1.0f, 0.0f, 0.0f}, glm::vec2{1.0f, 0.0f}},
-    Vertex{glm::vec3{0.5f, -0.5f, 0.0f}, glm::vec3{0.0f, 1.0f, 0.0f}, glm::vec2{0.0f, 0.0f}},
-    Vertex{glm::vec3{0.5f, 0.5f, 0.0f}, glm::vec3{0.0f, 0.0f, 1.0f}, glm::vec2(0.0f, 1.0f)},
-    Vertex{glm::vec3{-0.5f, 0.5f, 0.0f}, glm::vec3{1.0f, 1.0f, 1.0f}, glm::vec2{1.0f, 1.0f}},
-
-    Vertex{glm::vec3{-0.5f, -0.5f, -0.5f}, glm::vec3{1.0f, 0.0f, 0.0f}, glm::vec2{1.0f, 0.0f}},
-    Vertex{glm::vec3{0.5f, -0.5f, -0.5f}, glm::vec3{0.0f, 1.0f, 0.0f}, glm::vec2{0.0f, 0.0f}},
-    Vertex{glm::vec3{0.5f, 0.5f, -0.5f}, glm::vec3{0.0f, 0.0f, 1.0f}, glm::vec2(0.0f, 1.0f)},
-    Vertex{glm::vec3{-0.5f, 0.5f, -0.5f}, glm::vec3{1.0f, 1.0f, 1.0f}, glm::vec2{1.0f, 1.0f}}};
-
-constexpr std::array<U16, 12> indices = {0, 1, 2, 2, 3, 0, 4, 5, 6, 6, 7, 4};
 
 static VKAPI_ATTR VkBool32 VKAPI_CALL
 DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT severity,
@@ -55,6 +44,7 @@ DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT severity,
     } else {
         LOG_INFO("[Vulkan] {}", msg);
     }
+    (void)msg;
     return VK_FALSE;
 }
 
@@ -178,6 +168,7 @@ void VulkanRenderer::initialize(const RendererConfig& cfg) {
     create_texture_image();
     create_texture_image_view();
     create_texture_sampler();
+    load_model();
     create_vertex_buffer();
     create_index_buffer();
     create_uniform_buffers();
@@ -537,7 +528,7 @@ void VulkanRenderer::create_descriptor_set_layout() {
 
 void VulkanRenderer::create_graphics_pipeline() {
     // TODO: abstract away the filepath thing, especially for resources such as shaders/textures.
-    auto shader = ShaderLoader::read_file("../../../assets/shaders/triangle.spv");
+    auto shader = ShaderLoader::read_file("../../../../assets/shaders/triangle.spv");
 
     // Shader modules && stage creations
     VkShaderModule shaderModule = create_shader_module(shader);
@@ -779,8 +770,8 @@ void VulkanRenderer::create_depth_resources() {
 
 void VulkanRenderer::create_texture_image() {
     int textWidth, textHeight, textChannels;
-    auto pixels = stbi_load("../../../assets/textures/texture.jpg", &textWidth, &textHeight,
-                            &textChannels, STBI_rgb_alpha);
+    auto pixels = stbi_load(MODEL_TEXTURE_PATH.c_str(), &textWidth, &textHeight, &textChannels,
+                            STBI_rgb_alpha);
     if (pixels == nullptr) {
         // TODO: improve the logging utility (if not use spdlog at least)
         LOG_ERROR("[VulkanRenderer]: Failed to load texture image!");
@@ -796,6 +787,7 @@ void VulkanRenderer::create_texture_image() {
     create_buffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                   VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
                   stagingBuffer, stagingBufferMem);
+
     void* data;
     vkMapMemory(m_Device, stagingBufferMem, 0, imageSize, 0, &data);
     memcpy(data, pixels, static_cast<U32>(imageSize));
@@ -851,8 +843,59 @@ void VulkanRenderer::create_texture_sampler() {
     VULKAN_CHECK(vkCreateSampler(m_Device, &samplerInfo, nullptr, &m_TextureSampler));
 }
 
+void VulkanRenderer::load_model() {
+    tinyobj::attrib_t attrib;
+    std::vector<tinyobj::shape_t> shapes;
+    std::vector<tinyobj::material_t> materials;
+    std::string warn;
+    std::string err;
+
+    bool ret = tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, MODEL_PATH.c_str());
+
+    if (!warn.empty()) {
+        LOG_WARN("[VulkanRenderer::load_model()]: Unable to import model: {}", warn);
+    }
+
+    if (!err.empty()) {
+        LOG_FATAL("[VulkanRenderer::load_model()]: Unable to import model: {}", err);
+    }
+
+    if (!ret)
+        throw std::runtime_error(err);
+
+    LOG_INFO("[VulkanRenderer]: Retrieved model: {}", MODEL_PATH);
+    LOG_INFO("[VulkanRenderer]: Retrieved model texture: {}", MODEL_TEXTURE_PATH);
+
+    // Vertex deduplication.
+    // TODO: there surely is a more efficient way of doing this?
+
+    std::unordered_map<Vertex, U32> uniqueVertices{};
+
+    for (const auto& shape : shapes) {
+        for (const auto& index : shape.mesh.indices) {
+            Vertex vertex{};
+
+            vertex.position = {attrib.vertices[3 * index.vertex_index + 0],
+                               attrib.vertices[3 * index.vertex_index + 1],
+                               attrib.vertices[3 * index.vertex_index + 2]};
+
+            vertex.color = {1.0f, 1.0f, 1.0f};
+
+            vertex.texCoord = {attrib.texcoords[2 * index.texcoord_index + 0],
+                               1.0f - attrib.texcoords[2 * index.texcoord_index + 1]};
+
+            if (uniqueVertices.count(vertex) == 0) {
+                uniqueVertices[vertex] = static_cast<U32>(m_Vertices.size());
+                m_Vertices.push_back(vertex);
+            }
+
+            m_Indices.push_back(uniqueVertices[vertex]);
+        }
+    }
+}
+
 void VulkanRenderer::create_vertex_buffer() {
-    VkDeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
+    VkDeviceSize bufferSize = sizeof(m_Vertices[0]) * m_Vertices.size();
 
     // Create a staging buffer to use it as a source in memory transfer operation
     VkBuffer stagingBuffer;
@@ -864,7 +907,7 @@ void VulkanRenderer::create_vertex_buffer() {
     void* data;
 
     vkMapMemory(m_Device, stagingBufferMemory, 0, bufferSize, 0, &data);
-    memcpy(data, vertices.data(), static_cast<size_t>(bufferSize));
+    memcpy(data, m_Vertices.data(), static_cast<size_t>(bufferSize));
     vkUnmapMemory(m_Device, stagingBufferMemory);
 
     // Make the vertex buffer a transfer destination for the memory transfer
@@ -878,7 +921,7 @@ void VulkanRenderer::create_vertex_buffer() {
 }
 
 void VulkanRenderer::create_index_buffer() {
-    VkDeviceSize bufferSize = sizeof(indices[0]) * indices.size();
+    VkDeviceSize bufferSize = sizeof(m_Indices[0]) * m_Indices.size();
 
     // Create a staging buffer to use it as a source in memory transfer operation
     VkBuffer stagingBuffer;
@@ -890,7 +933,7 @@ void VulkanRenderer::create_index_buffer() {
     void* data;
 
     vkMapMemory(m_Device, stagingBufferMemory, 0, bufferSize, 0, &data);
-    memcpy(data, indices.data(), static_cast<size_t>(bufferSize));
+    memcpy(data, m_Indices.data(), static_cast<size_t>(bufferSize));
     vkUnmapMemory(m_Device, stagingBufferMemory);
 
     // Make the vertex buffer a transfer destination for the memory transfer
@@ -1104,7 +1147,7 @@ void VulkanRenderer::record_draw_commands(VkCommandBuffer commandBuffer, U32 ima
         VkDeviceSize offsets[] = {0};
 
         vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
-        vkCmdBindIndexBuffer(commandBuffer, m_IndexBuffer, 0, VK_INDEX_TYPE_UINT16);
+        vkCmdBindIndexBuffer(commandBuffer, m_IndexBuffer, 0, VK_INDEX_TYPE_UINT32);
 
         // 3) Submit Viewport Details
         VkViewport viewport{};
@@ -1131,7 +1174,7 @@ void VulkanRenderer::record_draw_commands(VkCommandBuffer commandBuffer, U32 ima
                                 1, &m_DescriptorSets[m_CurrentFrame], 0, nullptr);
 
         // 6) Draw Indexed
-        vkCmdDrawIndexed(commandBuffer, indices.size(), 1, 0, 0, 0);
+        vkCmdDrawIndexed(commandBuffer, m_Indices.size(), 1, 0, 0, 0);
 
         // 7) End Render Pass
         vkCmdEndRenderPass(commandBuffer);
@@ -1490,7 +1533,7 @@ VkExtent2D VulkanRenderer::choose_swap_extent(const VkSurfaceCapabilitiesKHR& ca
     return ext;
 }
 
-bool VulkanRenderer::check_validation_layer_support() {
+bool VulkanRenderer::check_validation_layer_support() const {
     U32 layerCount;
     vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
 

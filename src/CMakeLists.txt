@@ -97,6 +97,7 @@ set(ENGINE_RENDERER_HEADERS
 
 set(ENGINE_EXTERN_HEADERS
         ../extern/stb_image.h
+        ../extern/tiny_obj_loader.h
 )
 
 set(ENGINE_HEADERS

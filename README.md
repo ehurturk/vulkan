@@ -59,8 +59,12 @@ I intend to build the core engine as a static library, and later link it with a 
 
 ## Logs
 
-#### Hello Triangle (8-12-2025):
-![triangle](./res/triangle.jpeg)
+#### Model Loading (19-12-2025):
+![model](res/model.png)
 
 #### Spinning Texture (18-12-2025):
 ![texture](res/textures.png)
+
+#### Hello Triangle (8-12-2025):
+![triangle](./res/triangle.jpeg)
+

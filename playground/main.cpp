@@ -43,5 +43,5 @@ ENTRYPOINT(platform) {
     platform.run(&app);
     platform.terminate();
 
-    return 1;
+    return EXIT_SUCCESS;
 }

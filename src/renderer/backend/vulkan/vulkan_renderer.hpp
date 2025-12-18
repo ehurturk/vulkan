@@ -13,14 +13,15 @@
 
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#define GLM_ENABLE_EXPERIMENTAL
 #include <glm/glm.hpp>
+#include <glm/gtx/hash.hpp>
 
 namespace Platform {
 class Window;
 }
 
 namespace Renderer::Vulkan {
-
 struct Vertex {
     glm::vec3 position;
     glm::vec3 color;
@@ -55,7 +56,27 @@ struct Vertex {
 
         return attributeDescriptions;
     }
+
+    bool operator==(const Vertex& other) const {
+        return position == other.position && color == other.color && texCoord == other.texCoord;
+    }
 };
+
+}  // namespace Renderer::Vulkan
+
+namespace std {
+using namespace Renderer::Vulkan;
+template <>
+struct hash<Vertex> {
+    size_t operator()(Vertex const& vertex) const {
+        return ((hash<glm::vec3>()(vertex.position) ^ (hash<glm::vec3>()(vertex.color) << 1)) >>
+                1) ^
+               (hash<glm::vec2>()(vertex.texCoord) << 1);
+    }
+};
+}  // namespace std
+
+namespace Renderer::Vulkan {
 
 // Alignment Requirements:
 // float = 4 bytes
@@ -79,6 +100,8 @@ class VulkanRenderer final : public RendererBackend {
 
    private:
     static constexpr int MAX_FRAMES_IN_FLIGHT = 2;
+    const std::string MODEL_PATH = "../../../../assets/models/viking_room.obj";
+    const std::string MODEL_TEXTURE_PATH = "../../../../assets/models/viking_room.png";
 
     struct VkState {
         VkInstance instance = VK_NULL_HANDLE;
@@ -116,6 +139,7 @@ class VulkanRenderer final : public RendererBackend {
     void create_texture_image();
     void create_texture_image_view();
     void create_texture_sampler();
+    void load_model();
     void create_vertex_buffer();
     void create_index_buffer();
     void create_uniform_buffers();
@@ -166,7 +190,7 @@ class VulkanRenderer final : public RendererBackend {
     bool check_device_extension_support(VkPhysicalDevice device);
     SwapchainSupportDetails query_swap_chain_support(VkPhysicalDevice device) const;
     VkExtent2D choose_swap_extent(const VkSurfaceCapabilitiesKHR& capabilities);
-    bool check_validation_layer_support();
+    bool check_validation_layer_support() const;
     U32 find_memory_type(U32 typeFilter, VkMemoryPropertyFlags properties) const;
     VkFormat find_supported_format(std::span<const VkFormat> candidates,
                                    VkImageTiling tiling,
@@ -229,5 +253,9 @@ class VulkanRenderer final : public RendererBackend {
     std::vector<VkSemaphore> m_RenderFinishedSemaphores;
 
     std::array<VkFence, MAX_FRAMES_IN_FLIGHT> m_InFlightFences;
+
+    // MODEL SPECIFIC MEMBERS:
+    std::vector<Vertex> m_Vertices;
+    std::vector<U32> m_Indices;
 };
 }  // namespace Renderer::Vulkan
