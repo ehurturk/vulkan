@@ -106,6 +106,20 @@ set(ENGINE_HEADERS
         ${ENGINE_RENDERER_HEADERS}
 )
 
+
+include(FetchContent)
+
+set(FETCHCONTENT_BASE_DIR ${PROJECT_SOURCE_DIR}/libs CACHE PATH "Missing description." FORCE)
+FetchContent_Declare(assimp
+GIT_REPOSITORY https://github.com/assimp/assimp.git
+GIT_TAG master)
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+set(ASSIMP_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(ASSIMP_INJECT_DEBUG_POSTFIX OFF CACHE BOOL "" FORCE)
+set(ASSIMP_INSTALL OFF CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(assimp)
+
+
 # engine target - build as static library
 
 add_library(engine STATIC)
@@ -127,6 +141,7 @@ target_include_directories(engine
         $<INSTALL_INTERFACE:include>
         PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}
+        libs/assimp-src/include
 )
 
 target_link_libraries(engine
@@ -134,6 +149,7 @@ target_link_libraries(engine
         Vulkan::Vulkan
         PRIVATE
         glfw
+        assimp
 )
 
 if (PLATFORM_LINUX)

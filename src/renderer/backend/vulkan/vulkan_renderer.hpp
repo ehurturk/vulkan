@@ -78,6 +78,8 @@ struct hash<Vertex> {
 
 namespace Renderer::Vulkan {
 
+static constexpr int MAX_FRAMES_IN_FLIGHT = 2;
+
 // Alignment Requirements:
 // float = 4 bytes
 // glm::vec2 = 8 bytes
@@ -87,6 +89,31 @@ struct UniformBufferObject {
     alignas(16) glm::mat4 model;
     alignas(16) glm::mat4 view;
     alignas(16) glm::mat4 proj;
+};
+
+struct GameObject {
+    glm::vec3 position = {0.0f, 0.0f, 0.0f};
+    glm::vec3 rotation = {0.0f, 0.0f, 0.0f};
+    glm::vec3 scale = {1.0f, 1.0f, 1.0f};
+
+    // Uniform buffer for this object (one per frame in flight)
+    std::array<VkBuffer, MAX_FRAMES_IN_FLIGHT> uniformBuffers;
+    std::array<VkDeviceMemory, MAX_FRAMES_IN_FLIGHT> uniformBufferMemories;
+    std::array<void*, MAX_FRAMES_IN_FLIGHT> uniformBuffersMapped;
+
+    // Descriptor sets for this object (one per frame in flight)
+    std::array<VkDescriptorSet, MAX_FRAMES_IN_FLIGHT> descriptorSets;
+
+    // Apply translation, rotation, and scale transformations to get the model matrix
+    glm::mat4 get_model_matrix() const {
+        glm::mat4 model = glm::mat4(1.0f);
+        model = glm::translate(model, position);
+        model = glm::rotate(model, rotation.x, glm::vec3(1.0f, 0.0f, 0.0f));
+        model = glm::rotate(model, rotation.y, glm::vec3(0.0f, 1.0f, 0.0f));
+        model = glm::rotate(model, rotation.z, glm::vec3(0.0f, 0.0f, 1.0f));
+        model = glm::scale(model, scale);
+        return model;
+    }
 };
 
 class VulkanRenderer final : public RendererBackend {
@@ -99,7 +126,6 @@ class VulkanRenderer final : public RendererBackend {
     void draw_frame() override;
 
    private:
-    static constexpr int MAX_FRAMES_IN_FLIGHT = 2;
     const std::string MODEL_PATH = "../../../../assets/models/viking_room.obj";
     const std::string MODEL_TEXTURE_PATH = "../../../../assets/models/viking_room.png";
 
@@ -142,6 +168,7 @@ class VulkanRenderer final : public RendererBackend {
     void load_model();
     void create_vertex_buffer();
     void create_index_buffer();
+    void setup_game_objects();
     void create_uniform_buffers();
     void create_descriptor_pool();
     void create_descriptor_sets();
@@ -165,7 +192,7 @@ class VulkanRenderer final : public RendererBackend {
 
     void copy_buffer(VkBuffer src, VkBuffer dest, VkDeviceSize size);
 
-    void update_uniform_buffer(U32 imageIdx) const;
+    void update_uniform_buffer(U32 imageIdx);
 
     VkImageView create_image_view(VkImage image, VkFormat format, VkImageAspectFlags flags);
     void create_image(uint32_t width,
@@ -232,12 +259,13 @@ class VulkanRenderer final : public RendererBackend {
     VkBuffer m_IndexBuffer;
     VkDeviceMemory m_IndexBufferMemory;
 
-    std::vector<VkBuffer> m_UniformBuffers;
-    std::vector<VkDeviceMemory> m_UniformBuffersMemory;
-    std::vector<void*> m_UniformBuffersMapped;
+    // std::vector<VkBuffer> m_UniformBuffers;
+    // std::vector<VkDeviceMemory> m_UniformBuffersMemory;
+    // std::vector<void*> m_UniformBuffersMapped;
 
+    // std::array<VkDescriptorSet, MAX_FRAMES_IN_FLIGHT> m_DescriptorSets;
+    std::vector<GameObject> m_GameObjects;
     VkDescriptorPool m_DescriptorPool;
-    std::array<VkDescriptorSet, MAX_FRAMES_IN_FLIGHT> m_DescriptorSets;
 
     VkSampler m_TextureSampler;
 

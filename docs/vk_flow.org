@@ -1,0 +1,79 @@
+#+title: Vk Flow
+
+Vulkan initialization is executed in this order:
+1) Create instance
+2) Create surface
+3) Pick physical device
+4) Create logical device
+5) Create swapchain
+6) Create image views
+7) Create renderpass
+8) Create graphics pipeline
+9) Create framebuffers
+10) Create command pool
+11) Create a vertex buffer
+12) Create an index buffer
+13) Create command buffers
+14) Create synchronization objects
+
+* Creating an instance
+** A ~VkApplicationInfo~ is created. Fields:
+- ~.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO~
+- Other types (app version, engine name, engine version, api version etc.)
+
+
+** A ~VkInstanceCreateInfo~ is needed. Fields:
+- ~.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO~
+- ~.pApplicationInfo = &appInfo~
+- List of extensions & extension ocunt is needed
+
+* Creating a surface
+This step involves interacting with the OS specific windowing functions.
+** For GLFW, it is:
+- ~glfwCreateSurface(VkInstance, GLFWWindow*, VkAllocationCallbacks*, VkSurfaceKHR*)~
+  
+* Pick Physical Device
+The first step is to retrieve the number of physical devices (GPUs) available on the machine via (~vkEnumeratePhysicalDevices~).
+Then, we can store the available ~VkPhysicalDevice~ s into a vector, iterating to check which one is suitable (via ~is_physical_device_suitable()~).
+
+** ~is_physical_device_suitable()~:
+A physical device is suitable if extensions are supported, and has a swapchain support for format capabilities and present capabilities.
+We can get the surface capbilities of a physical device using ~vkGetPhysicalDeviceSurfaceCapabilities()~. Individual capabilities can be queried with
+~vkGetPhysicalDeviceSurfaceFormatsKHR()~ (for format) and ~vkGetPhysicalDeviceSurfacePresentModesKHR()~ (for presentation).
+
+* Create Logical Device
+First, we need to find required Queue indices (if present) in our machine. We do this via ~find_queue_families()~.
+
+- ~find_queue_families()~:
+  This returns the Queue families that our application is interested (typically a graphics family and a present family). The function wraps the families into
+  a ~QueueFamilyIndices~ struct is returned:
+  #+begin_src cpp
+ struct QueueFamilyIndices {
+    std::optional<U32> graphicsFamily;
+    std::optional<U32> presentFamily;
+
+    bool is_complete() { return graphicsFamily.has_value() && present_family.has_value(); }
+};
+#+end_src
+  The queue families can be queried via ~vkGetPhysicalDeviceQueueFamilyProperties(VkDevice*, U32*, VkQueueFamilyProperties*)~.
+
+  Then, the ~VkQueueFamilyProperties~ array can be iterated to test each queue family, and test their ~.queueFlags~ member with ~VK_QUEUE_GRAPHICS_BIT~ (or other flags).
+
+We can loop through each unique queue families and create a ~VkDeviceQueueCreateInfo~ and populate it with the correct ~queueFamilyIndex~.
+Then we can create the logical device with a ~VkDeviceCreateInfo~ struct, with a reference to the ~queueCreateInfos~ that we populated earlier, with
+an empty enabled device features (~VkPhysicalDeviceFeatures~). We can then retrieve the actual ~VkQueue~ objects with ~vkGetDeviceQueue(VkDevice*, U32, U32, VkQueue*)~. The first size is the queue family index and the second one is the actual queue index. We typically use 0 as the queue index.
+
+* Create Swapchain
+We first start with querying the swapchain support via the physical device.
+TODO
+
+* Create Image Views
+
+* Create Renderpass
+* Create Graphics Pipeline
+* Create Framebuffers
+* Create Command Pool
+* Create Vertex & Index Buffers
+* Create Command Buffers
+* Create Synchronization Objects
+

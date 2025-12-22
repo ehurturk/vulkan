@@ -1,7 +1,7 @@
 #include "vulkan_renderer.hpp"
 #include <algorithm>
 #include <set>
-#include <chrono>
+// #include <chrono>
 #include "core/logger.hpp"
 #include "core/assert.hpp"
 #include "renderer/backend/renderer.hpp"
@@ -133,7 +133,6 @@ VulkanRenderer::VulkanRenderer(Platform::Window* window)
       m_IndexBuffer(VK_NULL_HANDLE),
       m_IndexBufferMemory(VK_NULL_HANDLE),
       m_DescriptorPool(VK_NULL_HANDLE),
-      m_DescriptorSets{},
       m_TextureSampler(VK_NULL_HANDLE),
       m_TextureImage(VK_NULL_HANDLE),
       m_TextureImageMemory(VK_NULL_HANDLE),
@@ -171,6 +170,7 @@ void VulkanRenderer::initialize(const RendererConfig& cfg) {
     load_model();
     create_vertex_buffer();
     create_index_buffer();
+    setup_game_objects();
     create_uniform_buffers();
     create_descriptor_pool();
     create_descriptor_sets();
@@ -191,11 +191,15 @@ void VulkanRenderer::shutdown() {
     vkDestroyPipeline(m_Device, m_GraphicsPipeline, nullptr);
     vkDestroyPipelineLayout(m_Device, m_PipelineLayout, nullptr);
     vkDestroyRenderPass(m_Device, m_RenderPass, nullptr);
-    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        vkDestroyBuffer(m_Device, m_UniformBuffers[i], nullptr);
-        vkFreeMemory(m_Device, m_UniformBuffersMemory[i], nullptr);
+
+    for (auto& game_object : m_GameObjects) {
+        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+            vkDestroyBuffer(m_Device, game_object.uniformBuffers[i], nullptr);
+            vkFreeMemory(m_Device, game_object.uniformBufferMemories[i], nullptr);
+        }
     }
 
+    // Descriptor sets are automatically destroyed when the descriptor pool is destroyed
     vkDestroyDescriptorPool(m_Device, m_DescriptorPool, nullptr);
 
     vkDestroyImageView(m_Device, m_TextureImageView, nullptr);
@@ -299,7 +303,7 @@ void VulkanRenderer::draw_frame() {
     // Submit the present information to the presentation queue
     vkQueuePresentKHR(m_PresentQueue, &presentInfo);
 
-    m_CurrentFrame = (m_CurrentFrame + 1) % VulkanRenderer::MAX_FRAMES_IN_FLIGHT;
+    m_CurrentFrame = (m_CurrentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
 
 void VulkanRenderer::create_instance() {
@@ -946,88 +950,110 @@ void VulkanRenderer::create_index_buffer() {
     vkFreeMemory(m_Device, stagingBufferMemory, nullptr);
 }
 
+void VulkanRenderer::setup_game_objects() {
+    // Create 3 objects with different positions, rotations, and scales
+    m_GameObjects.resize(3);
+
+    m_GameObjects[0].position = {0.0f, 0.0f, 0.0f};
+    m_GameObjects[0].rotation = {0.0f, 0.0f, 0.0f};
+    m_GameObjects[0].scale = {.5f, .5f, .5f};
+
+    m_GameObjects[1].position = {-2.0f, 0.0f, -1.0f};
+    m_GameObjects[1].rotation = {0.0f, glm::radians(45.0f), 0.0f};
+    m_GameObjects[1].scale = {0.5f, 0.5f, 0.5f};
+
+    m_GameObjects[2].position = {2.0f, 0.0f, -1.0f};
+    m_GameObjects[2].rotation = {0.0f, glm::radians(45.0f), 0.0f};
+    m_GameObjects[2].scale = {0.5f, 0.5f, 0.5f};
+}
+
 void VulkanRenderer::create_uniform_buffers() {
-    VkDeviceSize bufferSize = sizeof(UniformBufferObject);
+    for (auto& game_object : m_GameObjects) {
+        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+            VkDeviceSize bufferSize = sizeof(UniformBufferObject);
 
-    m_UniformBuffers.resize(MAX_FRAMES_IN_FLIGHT);
-    m_UniformBuffersMemory.resize(MAX_FRAMES_IN_FLIGHT);
-    m_UniformBuffersMapped.resize(MAX_FRAMES_IN_FLIGHT);
+            create_buffer(
+                bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                game_object.uniformBuffers[i], game_object.uniformBufferMemories[i]);
 
-    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        create_buffer(bufferSize, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                      m_UniformBuffers[i], m_UniformBuffersMemory[i]);
-        vkMapMemory(m_Device, m_UniformBuffersMemory[i], 0, bufferSize, 0,
-                    &m_UniformBuffersMapped[i]);
+            vkMapMemory(m_Device, game_object.uniformBufferMemories[i], 0, bufferSize, 0,
+                        &game_object.uniformBuffersMapped[i]);
+        }
     }
 }
 
+// TODO: what happens when we add more game objects? how do we resize the descriptor pool?
 void VulkanRenderer::create_descriptor_pool() {
     std::array<VkDescriptorPoolSize, 2> poolSizes{};
     poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    poolSizes[0].descriptorCount = static_cast<U32>(MAX_FRAMES_IN_FLIGHT);
+    poolSizes[0].descriptorCount = static_cast<U32>(m_GameObjects.size() * MAX_FRAMES_IN_FLIGHT);
     poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    poolSizes[1].descriptorCount = static_cast<U32>(MAX_FRAMES_IN_FLIGHT);
+    poolSizes[1].descriptorCount = static_cast<U32>(m_GameObjects.size() * MAX_FRAMES_IN_FLIGHT);
 
     VkDescriptorPoolCreateInfo poolInfo{};
     poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    poolInfo.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;  // ?
     poolInfo.poolSizeCount = static_cast<U32>(poolSizes.size());
     poolInfo.pPoolSizes = poolSizes.data();
-    poolInfo.maxSets = static_cast<U32>(MAX_FRAMES_IN_FLIGHT);
+    poolInfo.maxSets = static_cast<U32>(m_GameObjects.size() * MAX_FRAMES_IN_FLIGHT);
 
     VULKAN_CHECK(vkCreateDescriptorPool(m_Device, &poolInfo, nullptr, &m_DescriptorPool));
 }
 
 // Create descriptor sets for each MAX_FRAMES_IN_FLIGHT.
 void VulkanRenderer::create_descriptor_sets() {
-    std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, m_DescriptorSetLayout);
+    for (auto& game_object : m_GameObjects) {
+        std::vector<VkDescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, m_DescriptorSetLayout);
 
-    // Allocate descriptor sets from the descriptor pool (m_DescriptorPool).
-    // We will have MAX_FRAMES_IN_FLIGHT number of descriptor sets (a descriptor
-    // set belongs to each frame).
-    VkDescriptorSetAllocateInfo allocate_info{};
-    allocate_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-    allocate_info.descriptorPool = m_DescriptorPool;
-    allocate_info.descriptorSetCount = static_cast<U32>(MAX_FRAMES_IN_FLIGHT);
-    allocate_info.pSetLayouts = layouts.data();
+        // Allocate descriptor sets from the descriptor pool (m_DescriptorPool).
+        // We will have MAX_FRAMES_IN_FLIGHT number of descriptor sets (a descriptor
+        // set belongs to each frame).
+        VkDescriptorSetAllocateInfo allocate_info{};
+        allocate_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        allocate_info.descriptorPool = m_DescriptorPool;
+        allocate_info.descriptorSetCount = static_cast<U32>(layouts.size());
+        allocate_info.pSetLayouts = layouts.data();
 
-    VULKAN_CHECK(vkAllocateDescriptorSets(m_Device, &allocate_info, m_DescriptorSets.data()));
+        VULKAN_CHECK(
+            vkAllocateDescriptorSets(m_Device, &allocate_info, game_object.descriptorSets.data()));
 
-    // Populate every descriptor for our uniform buffers
-    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-        // References the actual Uniform Buffer (VkBuffer) we are using.
-        // Offset 0 means read from the beginning of the buffer.
-        // This actually gives the buffer information a descriptor set needs.
-        VkDescriptorBufferInfo bufferInfo{};
-        bufferInfo.buffer = m_UniformBuffers[i];
-        bufferInfo.offset = 0;
-        bufferInfo.range = sizeof(UniformBufferObject);
+        // Populate every descriptor for our uniform buffers
+        for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+            // References the actual Uniform Buffer (VkBuffer) we are using.
+            // Offset 0 means read from the beginning of the buffer.
+            // This actually gives the buffer information a descriptor set needs.
+            VkDescriptorBufferInfo bufferInfo{};
+            bufferInfo.buffer = game_object.uniformBuffers[i];
+            bufferInfo.offset = 0;
+            bufferInfo.range = sizeof(UniformBufferObject);
 
-        VkDescriptorImageInfo imageInfo{};
-        imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        imageInfo.imageView = m_TextureImageView;
-        imageInfo.sampler = m_TextureSampler;
+            VkDescriptorImageInfo imageInfo{};
+            imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+            imageInfo.imageView = m_TextureImageView;
+            imageInfo.sampler = m_TextureSampler;
 
-        std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
+            std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
 
-        descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptorWrites[0].dstSet = m_DescriptorSets[i];
-        descriptorWrites[0].dstBinding = 0;
-        descriptorWrites[0].dstArrayElement = 0;
-        descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-        descriptorWrites[0].descriptorCount = 1;
-        descriptorWrites[0].pBufferInfo = &bufferInfo;
+            descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            descriptorWrites[0].dstSet = game_object.descriptorSets[i];
+            descriptorWrites[0].dstBinding = 0;
+            descriptorWrites[0].dstArrayElement = 0;
+            descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+            descriptorWrites[0].descriptorCount = 1;
+            descriptorWrites[0].pBufferInfo = &bufferInfo;
 
-        descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptorWrites[1].dstSet = m_DescriptorSets[i];
-        descriptorWrites[1].dstBinding = 1;
-        descriptorWrites[1].dstArrayElement = 0;
-        descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        descriptorWrites[1].descriptorCount = 1;
-        descriptorWrites[1].pImageInfo = &imageInfo;
+            descriptorWrites[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            descriptorWrites[1].dstSet = game_object.descriptorSets[i];
+            descriptorWrites[1].dstBinding = 1;
+            descriptorWrites[1].dstArrayElement = 0;
+            descriptorWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+            descriptorWrites[1].descriptorCount = 1;
+            descriptorWrites[1].pImageInfo = &imageInfo;
 
-        vkUpdateDescriptorSets(m_Device, static_cast<U32>(descriptorWrites.size()),
-                               descriptorWrites.data(), 0, nullptr);
+            vkUpdateDescriptorSets(m_Device, static_cast<U32>(descriptorWrites.size()),
+                                   descriptorWrites.data(), 0, nullptr);
+        }
     }
 }
 
@@ -1053,7 +1079,7 @@ void VulkanRenderer::create_sync_objects() {
     fenceCI.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
     fenceCI.flags = VK_FENCE_CREATE_SIGNALED_BIT;
 
-    for (int i = 0; i < VulkanRenderer::MAX_FRAMES_IN_FLIGHT; i++) {
+    for (int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         VULKAN_CHECK(vkCreateFence(m_Device, &fenceCI, nullptr, &m_InFlightFences[i]));
     }
 
@@ -1142,7 +1168,7 @@ void VulkanRenderer::record_draw_commands(VkCommandBuffer commandBuffer, U32 ima
         // 1) Bind graphics pipeline
         vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_GraphicsPipeline);
 
-        // 2) Bind vertex & index buffers
+        // 2) Bind vertex & index buffers (shared by all objects)
         VkBuffer vertexBuffers[] = {m_VertexBuffer};
         VkDeviceSize offsets[] = {0};
 
@@ -1170,12 +1196,15 @@ void VulkanRenderer::record_draw_commands(VkCommandBuffer commandBuffer, U32 ima
         //    - We have to specify whether we bind descriptors to graphics or compute pipeline
         // This will bind the current descriptor set for the current frame (as we have
         // MAX_FRAMES_IN_FLIGHT) amount of descriptor sets.
-        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, m_PipelineLayout, 0,
-                                1, &m_DescriptorSets[m_CurrentFrame], 0, nullptr);
+        // Draw each object with its own descriptor set
+        for (const auto& game_object : m_GameObjects) {
+            vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                                    m_PipelineLayout, 0, 1,
+                                    &game_object.descriptorSets[m_CurrentFrame], 0, nullptr);
 
-        // 6) Draw Indexed
-        vkCmdDrawIndexed(commandBuffer, m_Indices.size(), 1, 0, 0, 0);
-
+            // 6) Draw Indexed
+            vkCmdDrawIndexed(commandBuffer, m_Indices.size(), 1, 0, 0, 0);
+        }
         // 7) End Render Pass
         vkCmdEndRenderPass(commandBuffer);
     }
@@ -1258,25 +1287,31 @@ void VulkanRenderer::copy_buffer(VkBuffer src, VkBuffer dest, VkDeviceSize size)
     end_single_time_commands(commandBuffer);
 }
 
-void VulkanRenderer::update_uniform_buffer(U32 imageIdx) const {
-    // TODO: get absolute time / get engine boot time?
-    static auto st = std::chrono::high_resolution_clock::now();
-
-    auto ct = std::chrono::high_resolution_clock::now();
-    float time = std::chrono::duration<float>(ct - st).count();
-
-    UniformBufferObject ubo{};
-    ubo.model =
-        glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-    ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f),
-                           glm::vec3(0.0f, 0.0f, 1.0f));
-    ubo.proj = glm::perspective(
+void VulkanRenderer::update_uniform_buffer(U32 imageIdx) {
+    // TODO: abstract view into the camera class
+    glm::mat4 view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f),
+                                 glm::vec3(0.0f, 0.0f, 1.0f));
+    glm::mat4 proj = glm::perspective(
         glm::radians(45.0f),
         static_cast<float>(m_SwapchainExtent.width) / static_cast<float>(m_SwapchainExtent.height),
         0.1f, 10.0f);
-    ubo.proj[1][1] *= -1;
+    proj[1][1] *= -1;  // flip Y position for Vulkan (TODO)
 
-    memcpy(m_UniformBuffersMapped[imageIdx], &ubo, sizeof(ubo));
+    for (auto& gameObject : m_GameObjects) {
+        // Apply continuous rotation to the object
+        gameObject.rotation.y += 0.001f;  // Slow rotation around Y axis
+
+        // Get the model matrix for this object
+        glm::mat4 initialRotation =
+            glm::rotate(glm::mat4(1.0f), glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+        glm::mat4 model = gameObject.get_model_matrix() * initialRotation;
+
+        // Create and update the UBO
+        UniformBufferObject ubo{.model = model, .view = view, .proj = proj};
+
+        // Copy the UBO data to the mapped memory
+        memcpy(gameObject.uniformBuffersMapped[m_CurrentFrame], &ubo, sizeof(ubo));
+    }
 }
 
 VkImageView VulkanRenderer::create_image_view(VkImage image,
