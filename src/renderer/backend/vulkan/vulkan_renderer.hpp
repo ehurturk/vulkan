@@ -17,6 +17,9 @@
 #include <glm/glm.hpp>
 #include <glm/gtx/hash.hpp>
 
+#include <assimp/Importer.hpp>
+#include <assimp/scene.h>
+
 namespace Platform {
 class Window;
 }
@@ -62,6 +65,35 @@ struct Vertex {
     }
 };
 
+struct Material {
+    VkImage diffuseTexture = VK_NULL_HANDLE;
+    VkDeviceMemory diffuseTextureMemory = VK_NULL_HANDLE;
+    VkImageView diffuseTextureView = VK_NULL_HANDLE;
+
+    // TODO: more types such as normal texture, specular texture, etc.
+    std::string name;
+    U32 materialIndex;
+};
+
+struct Mesh {
+    std::vector<Vertex> vertices;
+    std::vector<U32> indices;
+    U32 materialIndex;  // which material this mesh
+
+    U32 vertexCount;
+    U32 indexCount;
+    VkDeviceSize vertexOffset;  // byte offset in vertex buffer
+    VkDeviceSize indexOffset;   // byte offset in index buffer
+    U32 firstIndex;
+    I32 vertexOffsetIndex;
+};
+
+struct Model {
+    std::vector<Mesh> meshes;
+    std::vector<Material> materials;
+    std::string directory;
+};
+
 }  // namespace Renderer::Vulkan
 
 namespace std {
@@ -101,8 +133,11 @@ struct GameObject {
     std::array<VkDeviceMemory, MAX_FRAMES_IN_FLIGHT> uniformBufferMemories;
     std::array<void*, MAX_FRAMES_IN_FLIGHT> uniformBuffersMapped;
 
-    // Descriptor sets for this object (one per frame in flight)
+    // Descriptor sets for this object's model matrix and combined sampler (one per frame in flight)
     std::array<VkDescriptorSet, MAX_FRAMES_IN_FLIGHT> descriptorSets;
+
+    U32 meshIndex;      // which mesh from the loaded model
+    U32 materialIndex;  // which material to use
 
     // Apply translation, rotation, and scale transformations to get the model matrix
     glm::mat4 get_model_matrix() const {
@@ -126,7 +161,7 @@ class VulkanRenderer final : public RendererBackend {
     void draw_frame() override;
 
    private:
-    const std::string MODEL_PATH = "../../../../assets/models/viking_room.obj";
+    const std::string MODEL_PATH = "../../../../assets/models/sponza/sponza.obj";
     const std::string MODEL_TEXTURE_PATH = "../../../../assets/models/viking_room.png";
 
     struct VkState {
@@ -224,6 +259,17 @@ class VulkanRenderer final : public RendererBackend {
                                    VkFormatFeatureFlags features) const;
     VkFormat find_depth_format() const;
 
+    void process_node(aiNode* node, const aiScene* scene);
+    Mesh process_mesh(aiMesh* mesh, const aiScene* scene);
+    void process_materials(const aiScene* scnee);
+    void load_texture(const std::string& path,
+                      VkImage& textureImage,
+                      VkDeviceMemory& textureMemory,
+                      VkImageView& textureView);
+    void create_default_texture(VkImage& image,
+                                VkDeviceMemory& imageMemory,
+                                VkImageView& imageView);
+
     Platform::Window* m_Window;
 
     U32 m_CurrentFrame;
@@ -259,11 +305,8 @@ class VulkanRenderer final : public RendererBackend {
     VkBuffer m_IndexBuffer;
     VkDeviceMemory m_IndexBufferMemory;
 
-    // std::vector<VkBuffer> m_UniformBuffers;
-    // std::vector<VkDeviceMemory> m_UniformBuffersMemory;
-    // std::vector<void*> m_UniformBuffersMapped;
+    std::array<VkDescriptorSet, MAX_FRAMES_IN_FLIGHT> m_SceneDescriptorSet;
 
-    // std::array<VkDescriptorSet, MAX_FRAMES_IN_FLIGHT> m_DescriptorSets;
     std::vector<GameObject> m_GameObjects;
     VkDescriptorPool m_DescriptorPool;
 
@@ -283,7 +326,10 @@ class VulkanRenderer final : public RendererBackend {
     std::array<VkFence, MAX_FRAMES_IN_FLIGHT> m_InFlightFences;
 
     // MODEL SPECIFIC MEMBERS:
+    // TODO remove these, use model now.
     std::vector<Vertex> m_Vertices;
     std::vector<U32> m_Indices;
+
+    Model m_LoadedModel;
 };
 }  // namespace Renderer::Vulkan

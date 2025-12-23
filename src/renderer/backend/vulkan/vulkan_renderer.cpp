@@ -1,7 +1,11 @@
 #include "vulkan_renderer.hpp"
 #include <algorithm>
+#include <numeric>
 #include <set>
-// #include <chrono>
+#include <ranges>
+#include "assimp/material.h"
+#include "assimp/postprocess.h"
+#include "assimp/scene.h"
 #include "core/logger.hpp"
 #include "core/assert.hpp"
 #include "renderer/backend/renderer.hpp"
@@ -164,8 +168,8 @@ void VulkanRenderer::initialize(const RendererConfig& cfg) {
     create_commandpool();
     create_depth_resources();
     create_framebuffers();
-    create_texture_image();
-    create_texture_image_view();
+    // create_texture_image();
+    // create_texture_image_view();
     create_texture_sampler();
     load_model();
     create_vertex_buffer();
@@ -205,6 +209,19 @@ void VulkanRenderer::shutdown() {
     vkDestroyImageView(m_Device, m_TextureImageView, nullptr);
     vkDestroyImage(m_Device, m_TextureImage, nullptr);
     vkFreeMemory(m_Device, m_TextureImageMemory, nullptr);
+
+    for (auto& material : m_LoadedModel.materials) {
+        if (material.diffuseTextureView != VK_NULL_HANDLE) {
+            vkDestroyImageView(m_Device, material.diffuseTextureView, nullptr);
+        }
+        if (material.diffuseTexture != VK_NULL_HANDLE) {
+            vkDestroyImage(m_Device, material.diffuseTexture, nullptr);
+        }
+        if (material.diffuseTextureMemory != VK_NULL_HANDLE) {
+            vkFreeMemory(m_Device, material.diffuseTextureMemory, nullptr);
+        }
+    }
+
     vkDestroySampler(m_Device, m_TextureSampler, nullptr);
 
     vkDestroyDescriptorSetLayout(m_Device, m_DescriptorSetLayout, nullptr);
@@ -847,59 +864,221 @@ void VulkanRenderer::create_texture_sampler() {
     VULKAN_CHECK(vkCreateSampler(m_Device, &samplerInfo, nullptr, &m_TextureSampler));
 }
 
-void VulkanRenderer::load_model() {
-    tinyobj::attrib_t attrib;
-    std::vector<tinyobj::shape_t> shapes;
-    std::vector<tinyobj::material_t> materials;
-    std::string warn;
-    std::string err;
+void VulkanRenderer::process_node(aiNode* node, const aiScene* scene) {
+    m_LoadedModel.meshes.reserve(node->mNumMeshes);
 
-    bool ret = tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, MODEL_PATH.c_str());
-
-    if (!warn.empty()) {
-        LOG_WARN("[VulkanRenderer::load_model()]: Unable to import model: {}", warn);
+    for (size_t i = 0; i < node->mNumMeshes; i++) {
+        aiMesh* mesh = scene->mMeshes[node->mMeshes[i]];
+        m_LoadedModel.meshes.push_back(process_mesh(mesh, scene));
     }
 
-    if (!err.empty()) {
-        LOG_FATAL("[VulkanRenderer::load_model()]: Unable to import model: {}", err);
+    for (size_t i = 0; i < node->mNumChildren; i++) {
+        process_node(node->mChildren[i], scene);
     }
+}
 
-    if (!ret)
-        throw std::runtime_error(err);
-
-    LOG_INFO("[VulkanRenderer]: Retrieved model: {}", MODEL_PATH);
-    LOG_INFO("[VulkanRenderer]: Retrieved model texture: {}", MODEL_TEXTURE_PATH);
-
-    // Vertex deduplication.
-    // TODO: there surely is a more efficient way of doing this?
-
+Mesh VulkanRenderer::process_mesh(aiMesh* mesh, const aiScene* scene) {
+    Mesh result{};
     std::unordered_map<Vertex, U32> uniqueVertices{};
 
-    for (const auto& shape : shapes) {
-        for (const auto& index : shape.mesh.indices) {
-            Vertex vertex{};
+    result.vertices.reserve(mesh->mNumVertices);
+    for (size_t i = 0; i < mesh->mNumVertices; i++) {
+        result.vertices.emplace_back(
+            glm::vec3{mesh->mVertices[i].x, mesh->mVertices[i].y, mesh->mVertices[i].z},
+            mesh->mColors[0]
+                ? glm::vec3{mesh->mColors[0][i].r, mesh->mColors[0][i].g, mesh->mColors[0][i].b}
+                : glm::vec3{1.0f, 1.0f, 1.0f},
+            mesh->mTextureCoords[0]
+                ? glm::vec2{mesh->mTextureCoords[0][i].x, mesh->mTextureCoords[0][i].y}
+                : glm::vec2{0.0f, 0.0f});
+    }
 
-            vertex.position = {attrib.vertices[3 * index.vertex_index + 0],
-                               attrib.vertices[3 * index.vertex_index + 1],
-                               attrib.vertices[3 * index.vertex_index + 2]};
+    // TODO: reserve for here?
+    for (size_t i = 0; i < mesh->mNumFaces; i++) {
+        const aiFace& face = mesh->mFaces[i];
+        result.indices.insert(result.indices.end(), face.mIndices,
+                              face.mIndices + face.mNumIndices);
+    }
 
-            vertex.color = {1.0f, 1.0f, 1.0f};
+    result.materialIndex = mesh->mMaterialIndex;
 
-            vertex.texCoord = {attrib.texcoords[2 * index.texcoord_index + 0],
-                               1.0f - attrib.texcoords[2 * index.texcoord_index + 1]};
+    return result;
+}
 
-            if (uniqueVertices.count(vertex) == 0) {
-                uniqueVertices[vertex] = static_cast<U32>(m_Vertices.size());
-                m_Vertices.push_back(vertex);
+void VulkanRenderer::process_materials(const aiScene* scene) {
+    m_LoadedModel.materials.resize(scene->mNumMaterials);
+
+    for (size_t i = 0; i < scene->mNumMaterials; i++) {
+        aiMaterial* material = scene->mMaterials[i];
+        Material& mat = m_LoadedModel.materials[i];
+
+        mat.materialIndex = i;
+
+        aiString name;
+        material->Get(AI_MATKEY_NAME, name);
+        mat.name = name.C_Str();
+
+        LOG_INFO("[VulkanRenderer]: Processing material {}: {}", i, mat.name);
+
+        if (material->GetTextureCount(aiTextureType_DIFFUSE) > 0) {
+            aiString texturePath;
+            material->GetTexture(aiTextureType_DIFFUSE, 0, &texturePath);
+
+            std::string fullPath = m_LoadedModel.directory + "/" + texturePath.C_Str();
+
+            if (size_t fchar_idx = fullPath.find("\\"); fchar_idx != std::string::npos) {
+                fullPath.replace(fullPath.begin() + fchar_idx, fullPath.begin() + fchar_idx + 1,
+                                 "/");
             }
 
-            m_Indices.push_back(uniqueVertices[vertex]);
+            LOG_INFO("[VulkanRenderer]:\tLoading diffuse texture: {}", fullPath);
+
+            load_texture(fullPath, mat.diffuseTexture, mat.diffuseTextureMemory,
+                         mat.diffuseTextureView);
+        } else {
+            LOG_WARN("[VulkanRenderer]:\tNo diffuse texture found for material {}", mat.name);
+            create_default_texture(mat.diffuseTexture, mat.diffuseTextureMemory,
+                                   mat.diffuseTextureView);
         }
     }
 }
 
+void VulkanRenderer::create_default_texture(VkImage& image,
+                                            VkDeviceMemory& imageMemory,
+                                            VkImageView& imageView) {
+    const int texWidth = 1;
+    const int texHeight = 1;
+    unsigned char pixels[4] = {255, 255, 255, 255};  // White
+
+    VkDeviceSize imageSize = 4;
+
+    VkBuffer stagingBuffer;
+    VkDeviceMemory stagingBufferMemory;
+    create_buffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                  VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                  stagingBuffer, stagingBufferMemory);
+
+    void* data;
+    vkMapMemory(m_Device, stagingBufferMemory, 0, imageSize, 0, &data);
+    memcpy(data, pixels, 4);
+    vkUnmapMemory(m_Device, stagingBufferMemory);
+
+    create_image(texWidth, texHeight, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL,
+                 VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, image, imageMemory);
+
+    transition_image_layout(image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED,
+                            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+    copy_buffer_to_image(stagingBuffer, image, texWidth, texHeight);
+
+    transition_image_layout(image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+    vkDestroyBuffer(m_Device, stagingBuffer, nullptr);
+    vkFreeMemory(m_Device, stagingBufferMemory, nullptr);
+
+    imageView = create_image_view(image, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT);
+}
+
+void VulkanRenderer::load_texture(const std::string& path,
+                                  VkImage& textureImage,
+                                  VkDeviceMemory& textureMemory,
+                                  VkImageView& textureView) {
+    int texWidth, texHeight, texChannels;
+    stbi_uc* pixels = stbi_load(path.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+
+    if (!pixels) {
+        LOG_ERROR("[VulkanRenderer]: Failed to load texture: {}. Creating a default texture...",
+                  path);
+        create_default_texture(textureImage, textureMemory, textureView);
+        return;
+    }
+
+    VkDeviceSize imageSize = texWidth * texHeight * 4;
+
+    // Create staging buffer
+    VkBuffer stagingBuffer;
+    VkDeviceMemory stagingBufferMemory;
+    create_buffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                  VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                  stagingBuffer, stagingBufferMemory);
+
+    // Copy pixel data to staging buffer
+    void* data;
+    vkMapMemory(m_Device, stagingBufferMemory, 0, imageSize, 0, &data);
+    memcpy(data, pixels, static_cast<size_t>(imageSize));
+    vkUnmapMemory(m_Device, stagingBufferMemory);
+
+    stbi_image_free(pixels);
+
+    // Create the actual image in device local memory
+    create_image(texWidth, texHeight, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL,
+                 VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, textureImage, textureMemory);
+
+    // Transition image layout and copy from staging buffer
+    transition_image_layout(textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED,
+                            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+
+    copy_buffer_to_image(stagingBuffer, textureImage, static_cast<U32>(texWidth),
+                         static_cast<U32>(texHeight));
+
+    transition_image_layout(textureImage, VK_FORMAT_R8G8B8A8_SRGB,
+                            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+    // Cleanup staging buffer
+    vkDestroyBuffer(m_Device, stagingBuffer, nullptr);
+    vkFreeMemory(m_Device, stagingBufferMemory, nullptr);
+
+    // Create image view
+    textureView =
+        create_image_view(textureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT);
+}
+
+void VulkanRenderer::load_model() {
+    Assimp::Importer importer;
+
+    const aiScene* scene = importer.ReadFile(
+        MODEL_PATH.c_str(),
+        aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_GenNormals |
+            aiProcess_JoinIdenticalVertices |
+            aiProcess_MakeLeftHanded |  // ADD THIS - converts to left-handed (Vulkan/DirectX)
+            aiProcess_FlipWindingOrder);
+
+    if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
+        LOG_FATAL("[VulkanRenderer::load_model()]: Assimp error: {}", importer.GetErrorString());
+        return;
+    }
+
+    m_LoadedModel.directory = MODEL_PATH.substr(0, MODEL_PATH.find_last_of('/'));
+    LOG_INFO("[VulkanRenderer]: Loading model: {}", MODEL_PATH);
+    LOG_INFO("[VulkanRenderer]: Model has {} materials", scene->mNumMaterials);
+    LOG_INFO("[VulkanRenderer]: Model has {} meshes", scene->mNumMeshes);
+    LOG_INFO("[VulkanRenderer]: Model has {} textures", scene->mNumTextures);
+
+    process_materials(scene);
+
+    process_node(scene->mRootNode, scene);
+
+    LOG_INFO("[VulkanRenderer]: Model loaded successfully");
+    LOG_INFO("[VulkanRenderer]: Total Vertices: {}",
+             std::accumulate(m_LoadedModel.meshes.begin(), m_LoadedModel.meshes.end(), 0,
+                             [](int sum, const Mesh& m) { return sum + m.vertices.size(); }));
+}
+
 void VulkanRenderer::create_vertex_buffer() {
-    VkDeviceSize bufferSize = sizeof(m_Vertices[0]) * m_Vertices.size();
+    size_t total_vertices =
+        std::accumulate(m_LoadedModel.meshes.begin(), m_LoadedModel.meshes.end(), 0,
+                        [](int sum, const Mesh& m) { return sum + m.vertices.size(); });
+
+    VkDeviceSize bufferSize = sizeof(Vertex) * total_vertices;
+
+    if (bufferSize == 0) {
+        LOG_ERROR("[VulkanRenderer]: No vertices to create buffer for.");
+        throw std::runtime_error("No vertices to create buffer for.");
+    }
 
     // Create a staging buffer to use it as a source in memory transfer operation
     VkBuffer stagingBuffer;
@@ -911,7 +1090,19 @@ void VulkanRenderer::create_vertex_buffer() {
     void* data;
 
     vkMapMemory(m_Device, stagingBufferMemory, 0, bufferSize, 0, &data);
-    memcpy(data, m_Vertices.data(), static_cast<size_t>(bufferSize));
+    VkDeviceSize currentOffset = 0;
+    for (auto& mesh : m_LoadedModel.meshes) {
+        // Store offset information in the mesh
+        mesh.vertexOffset = currentOffset;
+        mesh.vertexCount = static_cast<U32>(mesh.vertices.size());
+        mesh.vertexOffsetIndex = static_cast<I32>(currentOffset / sizeof(Vertex));
+
+        // Copy this mesh's vertices
+        size_t meshSize = mesh.vertices.size() * sizeof(Vertex);
+        memcpy(static_cast<char*>(data) + currentOffset, mesh.vertices.data(), meshSize);
+
+        currentOffset += meshSize;
+    }
     vkUnmapMemory(m_Device, stagingBufferMemory);
 
     // Make the vertex buffer a transfer destination for the memory transfer
@@ -925,7 +1116,16 @@ void VulkanRenderer::create_vertex_buffer() {
 }
 
 void VulkanRenderer::create_index_buffer() {
-    VkDeviceSize bufferSize = sizeof(m_Indices[0]) * m_Indices.size();
+    size_t total_indices =
+        std::accumulate(m_LoadedModel.meshes.begin(), m_LoadedModel.meshes.end(), 0,
+                        [](int sum, const Mesh& m) { return sum + m.indices.size(); });
+
+    VkDeviceSize bufferSize = sizeof(U32) * total_indices;
+
+    if (bufferSize == 0) {
+        LOG_ERROR("[VulkanRenderer]: No indices to create buffer for!");
+        throw std::runtime_error("No indices to create buffer for!");
+    }
 
     // Create a staging buffer to use it as a source in memory transfer operation
     VkBuffer stagingBuffer;
@@ -937,7 +1137,20 @@ void VulkanRenderer::create_index_buffer() {
     void* data;
 
     vkMapMemory(m_Device, stagingBufferMemory, 0, bufferSize, 0, &data);
-    memcpy(data, m_Indices.data(), static_cast<size_t>(bufferSize));
+    VkDeviceSize currentOffset = 0;
+    for (auto& mesh : m_LoadedModel.meshes) {
+        // Store offset information in the mesh
+        mesh.indexOffset = currentOffset;
+        mesh.indexCount = static_cast<U32>(mesh.indices.size());
+        mesh.firstIndex = static_cast<U32>(currentOffset / sizeof(U32));
+
+        // Copy this mesh's indices
+        size_t meshSize = mesh.indices.size() * sizeof(U32);
+        memcpy(static_cast<char*>(data) + currentOffset, mesh.indices.data(), meshSize);
+
+        currentOffset += meshSize;
+    }
+
     vkUnmapMemory(m_Device, stagingBufferMemory);
 
     // Make the vertex buffer a transfer destination for the memory transfer
@@ -951,20 +1164,19 @@ void VulkanRenderer::create_index_buffer() {
 }
 
 void VulkanRenderer::setup_game_objects() {
-    // Create 3 objects with different positions, rotations, and scales
-    m_GameObjects.resize(3);
+    for (size_t i = 0; i < m_LoadedModel.meshes.size(); i++) {
+        GameObject obj{};
+        obj.meshIndex = static_cast<U32>(i);
+        obj.materialIndex = m_LoadedModel.meshes[i].materialIndex;
+        obj.position = {0.0f, 0.0f, 0.0f};
+        obj.rotation = {0.0f, 0.0f, 0.0f};
+        obj.scale = {0.01f, 0.01f, 0.01f};
 
-    m_GameObjects[0].position = {0.0f, 0.0f, 0.0f};
-    m_GameObjects[0].rotation = {0.0f, 0.0f, 0.0f};
-    m_GameObjects[0].scale = {.5f, .5f, .5f};
+        // TODO: convert this to emplace_back
+        m_GameObjects.push_back(obj);
+    }
 
-    m_GameObjects[1].position = {-2.0f, 0.0f, -1.0f};
-    m_GameObjects[1].rotation = {0.0f, glm::radians(45.0f), 0.0f};
-    m_GameObjects[1].scale = {0.5f, 0.5f, 0.5f};
-
-    m_GameObjects[2].position = {2.0f, 0.0f, -1.0f};
-    m_GameObjects[2].rotation = {0.0f, glm::radians(45.0f), 0.0f};
-    m_GameObjects[2].scale = {0.5f, 0.5f, 0.5f};
+    LOG_INFO("[VulkanRenderer]: Created {} game objects from model", m_GameObjects.size());
 }
 
 void VulkanRenderer::create_uniform_buffers() {
@@ -1028,9 +1240,11 @@ void VulkanRenderer::create_descriptor_sets() {
             bufferInfo.offset = 0;
             bufferInfo.range = sizeof(UniformBufferObject);
 
+            const Material& material = m_LoadedModel.materials[game_object.materialIndex];
+
             VkDescriptorImageInfo imageInfo{};
             imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-            imageInfo.imageView = m_TextureImageView;
+            imageInfo.imageView = material.diffuseTextureView;
             imageInfo.sampler = m_TextureSampler;
 
             std::array<VkWriteDescriptorSet, 2> descriptorWrites{};
@@ -1198,12 +1412,15 @@ void VulkanRenderer::record_draw_commands(VkCommandBuffer commandBuffer, U32 ima
         // MAX_FRAMES_IN_FLIGHT) amount of descriptor sets.
         // Draw each object with its own descriptor set
         for (const auto& game_object : m_GameObjects) {
+            const Mesh& mesh = m_LoadedModel.meshes[game_object.meshIndex];
+
             vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS,
                                     m_PipelineLayout, 0, 1,
                                     &game_object.descriptorSets[m_CurrentFrame], 0, nullptr);
 
             // 6) Draw Indexed
-            vkCmdDrawIndexed(commandBuffer, m_Indices.size(), 1, 0, 0, 0);
+            vkCmdDrawIndexed(commandBuffer, mesh.indexCount, 1, mesh.firstIndex,
+                             mesh.vertexOffsetIndex, 0);
         }
         // 7) End Render Pass
         vkCmdEndRenderPass(commandBuffer);
@@ -1290,7 +1507,7 @@ void VulkanRenderer::copy_buffer(VkBuffer src, VkBuffer dest, VkDeviceSize size)
 void VulkanRenderer::update_uniform_buffer(U32 imageIdx) {
     // TODO: abstract view into the camera class
     glm::mat4 view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f),
-                                 glm::vec3(0.0f, 0.0f, 1.0f));
+                                 glm::vec3(0.0f, 1.0f, 0.0f));
     glm::mat4 proj = glm::perspective(
         glm::radians(45.0f),
         static_cast<float>(m_SwapchainExtent.width) / static_cast<float>(m_SwapchainExtent.height),
@@ -1299,12 +1516,12 @@ void VulkanRenderer::update_uniform_buffer(U32 imageIdx) {
 
     for (auto& gameObject : m_GameObjects) {
         // Apply continuous rotation to the object
-        gameObject.rotation.y += 0.001f;  // Slow rotation around Y axis
+        // gameObject.rotation.z += 0.001f;  // Slow rotation around Y axis
 
         // Get the model matrix for this object
-        glm::mat4 initialRotation =
-            glm::rotate(glm::mat4(1.0f), glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-        glm::mat4 model = gameObject.get_model_matrix() * initialRotation;
+        // glm::mat4 initialRotation =
+        //    glm::rotate(glm::mat4(1.0f), glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+        glm::mat4 model = gameObject.get_model_matrix();
 
         // Create and update the UBO
         UniformBufferObject ubo{.model = model, .view = view, .proj = proj};
