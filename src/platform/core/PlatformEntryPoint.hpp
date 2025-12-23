@@ -8,6 +8,8 @@
 
 #if defined(__PLATFORM_WINDOWS__)
 #include <Windows.h>
+
+#include <platform/windows/platform.hpp>
 extern std::unique_ptr<Platform::PlatformContext> create_platform_context(HINSTANCE hInstance,
                                                                           HINSTANCE hPrevInstance,
                                                                           PSTR lpCmdLine,
@@ -30,6 +32,8 @@ int platform_main(Platform::WindowsPlatform& platform)
 #elif defined(__PLATFORM_MACOS__)
 #define UNIX_TYPE Platform::UnixType::MACOS
 #endif
+
+#include <platform/unix/platform.hpp>
 
 extern std::unique_ptr<Platform::PlatformContext> create_platform_context(int argc, char** argv);
 

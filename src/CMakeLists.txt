@@ -7,10 +7,10 @@ set(ENGINE_CORE_SOURCES
 
 set(ENGINE_PLATFORM_SOURCES
         platform/platform.cpp
-        platform/window.cpp
+        platform/window/window.cpp
         platform/window/glfw_window.cpp
         platform/window/headless_window.cpp
-
+        platform/input/glfw_input.cpp
 )
 
 if (PLATFORM_WINDOWS)
@@ -29,10 +29,15 @@ set(ENGINE_RENDERER_SOURCES
         renderer/backend/opengl/opengl_renderer.cpp
 )
 
+set(ENGINE_SCENE_SOURCES
+        scene/camera.cpp
+)
+
 set(ENGINE_SOURCES
         ${ENGINE_CORE_SOURCES}
         ${ENGINE_PLATFORM_SOURCES}
         ${ENGINE_RENDERER_SOURCES}
+        ${ENGINE_SCENE_SOURCES}
 )
 
 set(ENGINE_CORE_HEADERS
@@ -61,17 +66,19 @@ set(ENGINE_CORE_HEADERS
         core/concurrency/counter_pool.hpp
 
         core/containers/static_vector.hpp
-
-        types/game_types.hpp
 )
 
 set(ENGINE_PLATFORM_HEADERS
         platform/platform.hpp
-        platform/window.hpp
+        platform/window/window.hpp
         platform/core/PlatformContext.hpp
         platform/core/PlatformEntryPoint.hpp
         platform/window/glfw_window.hpp
         platform/window/headless_window.hpp
+        platform/input/input.hpp
+        platform/input/input_types.hpp
+        platform/input/input_events.hpp
+        platform/input/glfw_input.hpp
 )
 
 if (PLATFORM_WINDOWS)
@@ -100,10 +107,16 @@ set(ENGINE_EXTERN_HEADERS
         ../extern/tiny_obj_loader.h
 )
 
+set(ENGINE_SCENE_HEADERS
+        scene/camera.hpp
+)
+
+
 set(ENGINE_HEADERS
         ${ENGINE_CORE_HEADERS}
         ${ENGINE_PLATFORM_HEADERS}
         ${ENGINE_RENDERER_HEADERS}
+        ${ENGINE_SCENE_HEADERS}
 )
 
 
@@ -147,6 +160,7 @@ target_include_directories(engine
 target_link_libraries(engine
         PUBLIC
         Vulkan::Vulkan
+        glm::glm
         PRIVATE
         glfw
         assimp

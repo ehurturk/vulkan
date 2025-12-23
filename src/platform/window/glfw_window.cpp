@@ -1,4 +1,3 @@
-
 #include "glfw_window.hpp"
 #include <vulkan/vulkan_core.h>
 

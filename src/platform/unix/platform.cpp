@@ -1,7 +1,7 @@
 #include "./platform.hpp"
 #include "core/logger.hpp"
 #include "platform/core/PlatformContext.hpp"
-#include "platform/window.hpp"
+#include "platform/window/window.hpp"
 #include "../window/glfw_window.hpp"
 #include "../window/headless_window.hpp"
 

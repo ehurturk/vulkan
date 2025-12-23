@@ -5,7 +5,7 @@
 #include "core/PlatformContext.hpp"
 #include "core/timer.hpp"
 #include "defines.hpp"
-#include "window.hpp"
+#include "window/window.hpp"
 
 namespace Core {
 class Application;
@@ -13,7 +13,7 @@ class Application;
 
 namespace Platform {
 
-class InputEvent;
+struct InputEvent;
 
 class Platform {
    public:

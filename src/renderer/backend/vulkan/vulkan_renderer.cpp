@@ -2,7 +2,6 @@
 #include <algorithm>
 #include <numeric>
 #include <set>
-#include <ranges>
 #include "assimp/material.h"
 #include "assimp/postprocess.h"
 #include "assimp/scene.h"
@@ -12,7 +11,7 @@
 #include "renderer/backend/shader_loader.hpp"
 #include "renderer/backend/vulkan/vulkan_utils.hpp"
 #include "defines.hpp"
-#include "platform/window.hpp"
+#include "platform/window/window.hpp"
 
 #include <vulkan/vulkan_core.h>
 
@@ -20,9 +19,6 @@
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "../extern/stb_image.h"
-
-#define TINYOBJLOADER_IMPLEMENTATION
-#include "../extern/tiny_obj_loader.h"
 
 #define VULKAN_CHECK(x)                                                   \
     do {                                                                  \
@@ -168,8 +164,6 @@ void VulkanRenderer::initialize(const RendererConfig& cfg) {
     create_commandpool();
     create_depth_resources();
     create_framebuffers();
-    // create_texture_image();
-    // create_texture_image_view();
     create_texture_sampler();
     load_model();
     create_vertex_buffer();
@@ -787,56 +781,6 @@ void VulkanRenderer::create_depth_resources() {
                  VK_IMAGE_TILING_OPTIMAL, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
                  VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_DepthImage, m_DepthImageMemory);
     m_DepthImageView = create_image_view(m_DepthImage, depthFormat, VK_IMAGE_ASPECT_DEPTH_BIT);
-}
-
-void VulkanRenderer::create_texture_image() {
-    int textWidth, textHeight, textChannels;
-    auto pixels = stbi_load(MODEL_TEXTURE_PATH.c_str(), &textWidth, &textHeight, &textChannels,
-                            STBI_rgb_alpha);
-    if (pixels == nullptr) {
-        // TODO: improve the logging utility (if not use spdlog at least)
-        LOG_ERROR("[VulkanRenderer]: Failed to load texture image!");
-        throw std::runtime_error("Failed to load texture image!");
-    }
-
-    VkDeviceSize imageSize = textWidth * textHeight * 4;
-
-    // Use a staging buffer in host visible memory so that we can copy image pixels into the buffer,
-    // and later accesses to images are faster due to the image being in gpu vram.
-    VkBuffer stagingBuffer;
-    VkDeviceMemory stagingBufferMem;
-    create_buffer(imageSize, VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                  VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                  stagingBuffer, stagingBufferMem);
-
-    void* data;
-    vkMapMemory(m_Device, stagingBufferMem, 0, imageSize, 0, &data);
-    memcpy(data, pixels, static_cast<U32>(imageSize));
-    vkUnmapMemory(m_Device, stagingBufferMem);
-
-    stbi_image_free(pixels);
-
-    create_image(textWidth, textHeight, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_TILING_OPTIMAL,
-                 VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, m_TextureImage, m_TextureImageMemory);
-
-    transition_image_layout(m_TextureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_LAYOUT_UNDEFINED,
-                            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-
-    copy_buffer_to_image(stagingBuffer, m_TextureImage, static_cast<U32>(textWidth),
-                         static_cast<U32>(textHeight));
-
-    transition_image_layout(m_TextureImage, VK_FORMAT_R8G8B8A8_SRGB,
-                            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-
-    vkDestroyBuffer(m_Device, stagingBuffer, nullptr);
-    vkFreeMemory(m_Device, stagingBufferMem, nullptr);
-}
-
-void VulkanRenderer::create_texture_image_view() {
-    m_TextureImageView =
-        create_image_view(m_TextureImage, VK_FORMAT_R8G8B8A8_SRGB, VK_IMAGE_ASPECT_COLOR_BIT);
 }
 
 void VulkanRenderer::create_texture_sampler() {
@@ -1503,15 +1447,22 @@ void VulkanRenderer::copy_buffer(VkBuffer src, VkBuffer dest, VkDeviceSize size)
 
     end_single_time_commands(commandBuffer);
 }
-
+#include <GLFW/glfw3.h>
 void VulkanRenderer::update_uniform_buffer(U32 imageIdx) {
     // TODO: abstract view into the camera class
-    glm::mat4 view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f),
-                                 glm::vec3(0.0f, 1.0f, 0.0f));
+
+    const float radius = 2.0f;
+    float camX = sin(glfwGetTime() / 4.0f) * radius;
+    float camZ = cos(glfwGetTime() / 4.0f) * radius;
+    glm::mat4 view;
+    view =
+        glm::lookAt(glm::vec3(camX, 1.0, camZ), glm::vec3(0.0, 1.0, 0.0), glm::vec3(0.0, 1.0, 0.0));
+    // glm::mat4 view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f),
+    //                             glm::vec3(0.0f, 1.0f, 0.0f));
     glm::mat4 proj = glm::perspective(
         glm::radians(45.0f),
         static_cast<float>(m_SwapchainExtent.width) / static_cast<float>(m_SwapchainExtent.height),
-        0.1f, 10.0f);
+        0.1f, 100.0f);
     proj[1][1] *= -1;  // flip Y position for Vulkan (TODO)
 
     for (auto& gameObject : m_GameObjects) {

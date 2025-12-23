@@ -5,7 +5,7 @@
 
 namespace Platform {
 class Window;
-class InputEvent;
+struct InputEvent;
 class Platform;
 }  // namespace Platform
 

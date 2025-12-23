@@ -103,6 +103,7 @@ endfunction()
 
 find_package(Vulkan REQUIRED)
 find_package(glfw3 REQUIRED)
+find_package(glm REQUIRED)
 
 if (NOT Vulkan_FOUND)
     message(FATAL_ERROR "Vulkan SDK not found. Please install Vulkan SDK.")
@@ -112,8 +113,13 @@ if (NOT glfw3_FOUND)
     message(FATAL_ERROR "GLFW3 not found. Please install GLFW3.")
 endif ()
 
+if (NOT glm_FOUND)
+    message(FATAL_ERROR "GLM not found. Please install GLM.")
+endif ()
+
 message(STATUS "Found Vulkan: ${Vulkan_VERSION}")
 message(STATUS "Found GLFW3: ${glfw3_VERSION}")
+message(STATUS "Found GLM: ${glm_VERSION}")
 
 option(BUILD_TESTS "Build unit tests" ON)
 option(BUILD_PLAYGROUND "Build playground application" ON)

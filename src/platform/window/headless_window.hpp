@@ -1,7 +1,7 @@
 #pragma once
 
 #include <vulkan/vulkan.h>
-#include "platform/window.hpp"
+#include "platform/window/window.hpp"
 
 #include <vector>
 

@@ -1,7 +1,7 @@
 #pragma once
 
 #include <vulkan/vulkan.h>
-#include "platform/window.hpp"
+#include "window.hpp"
 
 #include <vector>
 
@@ -36,6 +36,9 @@ class GLFWWindow final : public Window {
                                U32 src_height) const override;
 
     void setTitle(const std::string& title) override;
+
+    // Get native window handle for input system
+    GLFWwindow* getNativeHandle() const { return m_Window; }
 
    private:
     GLFWwindow* m_Window;
