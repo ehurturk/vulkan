@@ -74,6 +74,8 @@ struct Material {
     VkDeviceMemory diffuseTextureMemory = VK_NULL_HANDLE;
     VkImageView diffuseTextureView = VK_NULL_HANDLE;
 
+    U32 mipLevels;
+
     // TODO: more types such as normal texture, specular texture, etc.
     std::string name;
     U32 materialIndex;
@@ -233,9 +235,13 @@ class VulkanRenderer final : public RendererBackend {
 
     void update_uniform_buffer(U32 imageIdx, RenderContext context);
 
-    VkImageView create_image_view(VkImage image, VkFormat format, VkImageAspectFlags flags);
-    void create_image(uint32_t width,
-                      uint32_t height,
+    VkImageView create_image_view(VkImage image,
+                                  VkFormat format,
+                                  VkImageAspectFlags flags,
+                                  U32 mipLevels);
+    void create_image(U32 width,
+                      U32 height,
+                      U32 mipLevels,
                       VkFormat format,
                       VkImageTiling tiling,
                       VkImageUsageFlags usage,
@@ -245,7 +251,8 @@ class VulkanRenderer final : public RendererBackend {
     void transition_image_layout(VkImage image,
                                  VkFormat format,
                                  VkImageLayout oldLayout,
-                                 VkImageLayout newLayout);
+                                 VkImageLayout newLayout,
+                                 U32 mipLevels);
 
     void copy_buffer_to_image(VkBuffer buffer, VkImage image, U32 width, U32 height);
 
@@ -273,6 +280,12 @@ class VulkanRenderer final : public RendererBackend {
     void create_default_texture(VkImage& image,
                                 VkDeviceMemory& imageMemory,
                                 VkImageView& imageView);
+
+    void generate_mipmaps(VkImage image,
+                          VkFormat imageFormat,
+                          U32 width,
+                          U32 height,
+                          U32 mipLevels);
 
     Platform::Window* m_Window;
 
