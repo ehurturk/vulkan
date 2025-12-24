@@ -18,6 +18,6 @@ void OpenGLRenderer::initialize(const RendererConfig& cfg) {
 
 void OpenGLRenderer::shutdown() {}
 
-void OpenGLRenderer::draw_frame() {}
+void OpenGLRenderer::draw_frame(RenderContext context) {}
 
 }  // namespace Renderer

@@ -12,6 +12,7 @@
 #include "renderer/backend/vulkan/vulkan_utils.hpp"
 #include "defines.hpp"
 #include "platform/window/window.hpp"
+#include "scene/camera.hpp"
 
 #include <vulkan/vulkan_core.h>
 
@@ -247,7 +248,7 @@ void VulkanRenderer::shutdown() {
     vkDestroyInstance(m_vkState->instance, nullptr);
 }
 
-void VulkanRenderer::draw_frame() {
+void VulkanRenderer::draw_frame(RenderContext context) {
     // Outline of a frame:
     // 1) wait for the previous frame to finish
     // 2) Acquire an image from the swapchain
@@ -273,7 +274,7 @@ void VulkanRenderer::draw_frame() {
     // Record the draw commands to the current frame's command buffer for the image imageIdx
     record_draw_commands(m_CommandBuffers[m_CurrentFrame], imageIdx);
 
-    update_uniform_buffer(m_CurrentFrame);
+    update_uniform_buffer(m_CurrentFrame, context);
 
     // block until this is ready
     std::array<VkSemaphore, 1> waitSemaphores{m_ImageAvailableSemaphores[m_CurrentFrame]};
@@ -1447,34 +1448,17 @@ void VulkanRenderer::copy_buffer(VkBuffer src, VkBuffer dest, VkDeviceSize size)
 
     end_single_time_commands(commandBuffer);
 }
-#include <GLFW/glfw3.h>
-void VulkanRenderer::update_uniform_buffer(U32 imageIdx) {
-    // TODO: abstract view into the camera class
 
-    const float radius = 2.0f;
-    float camX = sin(glfwGetTime() / 4.0f) * radius;
-    float camZ = cos(glfwGetTime() / 4.0f) * radius;
-    glm::mat4 view;
-    view =
-        glm::lookAt(glm::vec3(camX, 1.0, camZ), glm::vec3(0.0, 1.0, 0.0), glm::vec3(0.0, 1.0, 0.0));
-    // glm::mat4 view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f),
-    //                             glm::vec3(0.0f, 1.0f, 0.0f));
-    glm::mat4 proj = glm::perspective(
-        glm::radians(45.0f),
-        static_cast<float>(m_SwapchainExtent.width) / static_cast<float>(m_SwapchainExtent.height),
-        0.1f, 100.0f);
+void VulkanRenderer::update_uniform_buffer(U32 imageIdx, RenderContext context) {
+    glm::mat4 view = context.camera->get_view_matrix();
+    glm::mat4 proj =
+        context.camera->get_projection_matrix(m_SwapchainExtent.width, m_SwapchainExtent.height);
+
     proj[1][1] *= -1;  // flip Y position for Vulkan (TODO)
 
     for (auto& gameObject : m_GameObjects) {
-        // Apply continuous rotation to the object
-        // gameObject.rotation.z += 0.001f;  // Slow rotation around Y axis
-
-        // Get the model matrix for this object
-        // glm::mat4 initialRotation =
-        //    glm::rotate(glm::mat4(1.0f), glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
         glm::mat4 model = gameObject.get_model_matrix();
 
-        // Create and update the UBO
         UniformBufferObject ubo{.model = model, .view = view, .proj = proj};
 
         // Copy the UBO data to the mapped memory

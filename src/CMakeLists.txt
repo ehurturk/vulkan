@@ -31,6 +31,7 @@ set(ENGINE_RENDERER_SOURCES
 
 set(ENGINE_SCENE_SOURCES
         scene/camera.cpp
+        scene/camera_controller.cpp
 )
 
 set(ENGINE_SOURCES
@@ -109,6 +110,7 @@ set(ENGINE_EXTERN_HEADERS
 
 set(ENGINE_SCENE_HEADERS
         scene/camera.hpp
+        scene/camera_controller.hpp
 )
 
 

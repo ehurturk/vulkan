@@ -24,6 +24,10 @@ namespace Platform {
 class Window;
 }
 
+namespace Scene {
+class Camera;
+}
+
 namespace Renderer::Vulkan {
 struct Vertex {
     glm::vec3 position;
@@ -158,7 +162,7 @@ class VulkanRenderer final : public RendererBackend {
 
     void initialize(const RendererConfig& cfg) override;
     void shutdown() override;
-    void draw_frame() override;
+    void draw_frame(RenderContext context) override;
 
    private:
     const std::string MODEL_PATH = "../../../../assets/models/sponza/sponza.obj";
@@ -227,7 +231,7 @@ class VulkanRenderer final : public RendererBackend {
 
     void copy_buffer(VkBuffer src, VkBuffer dest, VkDeviceSize size);
 
-    void update_uniform_buffer(U32 imageIdx);
+    void update_uniform_buffer(U32 imageIdx, RenderContext context);
 
     VkImageView create_image_view(VkImage image, VkFormat format, VkImageAspectFlags flags);
     void create_image(uint32_t width,
