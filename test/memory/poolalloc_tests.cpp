@@ -99,7 +99,7 @@ struct FixedPoolAdapter {
 
     U* allocate(std::size_t n) {
         // Node containers allocate one object at a time
-        LOG_INFO("Allocating {} bytes", n);
+        CORE_LOG_INFO("Allocating {} bytes", n);
         if (n != 1)
             throw std::bad_alloc();
         void* p = pool->allocate_block();

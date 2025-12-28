@@ -134,6 +134,11 @@ set(ASSIMP_INJECT_DEBUG_POSTFIX OFF CACHE BOOL "" FORCE)
 set(ASSIMP_INSTALL OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(assimp)
 
+# Include spdlog
+if(NOT TARGET spdlog)
+    find_package(spdlog REQUIRED)
+endif()
+
 
 # engine target - build as static library
 
@@ -166,6 +171,7 @@ target_link_libraries(engine
         PRIVATE
         glfw
         assimp
+        spdlog::spdlog
 )
 
 if (PLATFORM_LINUX)

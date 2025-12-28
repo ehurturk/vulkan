@@ -10,10 +10,10 @@ UnixPlatform::UnixPlatform(const PlatformContext& context, UnixType type)
     : Platform(context), m_Type(type) {
     switch (m_Type) {
         case UnixType::MACOS:
-            LOG_INFO("Using UNIX Type: MACOS");
+            CORE_LOG_INFO("Using UNIX Type: MACOS");
             break;
         case UnixType::LINUX:
-            LOG_INFO("Using UNIX Type: LINUX");
+            CORE_LOG_INFO("Using UNIX Type: LINUX");
             break;
     }
 }

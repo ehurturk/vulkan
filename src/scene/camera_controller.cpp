@@ -35,14 +35,6 @@ void CameraController::update(const Platform::Input& input, float deltaTime) {
             m_Camera.moveForward(sprintSpeed - speed);
         }
     }
-
-    // auto [dx, dy] = input.getMouseDelta();
-    // if (dx != 0.0 || dy != 0.0) {
-    //     m_Camera.rotate(
-    //         static_cast<float>(dx) * m_MouseSensitivity,
-    //         static_cast<float>(-dy) * m_MouseSensitivity
-    //     );
-    // }
 }
 
 void CameraController::process_mouse_move_event(const Platform::MouseMoveEvent& event) {

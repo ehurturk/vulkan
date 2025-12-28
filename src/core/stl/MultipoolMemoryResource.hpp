@@ -40,8 +40,8 @@ class MultipoolMemoryResource : public std::pmr::memory_resource {
     void* do_allocate(size_t bytes, size_t alignment) override {
         for (const auto& pool : m_Pools) {
             if (bytes <= pool->block_size() && alignment <= pool->block_align()) {
-                LOG_INFO("[MultipoolMemoryResource]: Allocating from pool with size {}.",
-                         pool->block_size());
+                CORE_LOG_INFO("[MultipoolMemoryResource]: Allocating from pool with size {}.",
+                              pool->block_size());
                 void* p = pool->try_allocate_block();
                 if (p) {
                     return p;
@@ -49,19 +49,19 @@ class MultipoolMemoryResource : public std::pmr::memory_resource {
             }
         }
 
-        LOG_INFO("[MultipoolMemoryResource]: Allocating from upstream.");
+        CORE_LOG_INFO("[MultipoolMemoryResource]: Allocating from upstream.");
         return m_Upstream->allocate(bytes, alignment);
     }
 
     void do_deallocate(void* p, size_t bytes, size_t alignment) override {
         for (const auto& pool : m_Pools) {
             if (pool->owns(p)) {
-                LOG_INFO("[MultipoolMemoryResource]: Deallocating from pool.");
+                CORE_LOG_INFO("[MultipoolMemoryResource]: Deallocating from pool.");
                 pool->deallocate_block(p);
                 return;
             }
         }
-        LOG_INFO("[MultipoolMemoryResource]: Deallocating from upstream.");
+        CORE_LOG_INFO("[MultipoolMemoryResource]: Deallocating from upstream.");
         m_Upstream->deallocate(p, bytes, alignment);
     }
 

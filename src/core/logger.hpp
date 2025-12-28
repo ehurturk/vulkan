@@ -1,34 +1,39 @@
 #pragma once
 
-#include "defines.hpp"
-#include <string>
+#include <memory>
 #include <string_view>
 #include <format>
-#include <array>
 
 #define LOG_WARN_ENABLED 1
 #define LOG_INFO_ENABLED 1
 #define LOG_DEBUG_ENABLED 1
 #define LOG_TRACE_ENABLED 1
 
-namespace Core {
+namespace spdlog {
+class logger;
+}
 
-enum class LogLevel : U8 { Fatal = 0, Error, Warn, Info, Debug, Trace };
+namespace Core {
 
 class Logger {
    public:
+    using LoggerRef = std::shared_ptr<spdlog::logger>;
+
+    enum class LogLevel { Fatal, Error, Warn, Info, Debug, Trace };
+    enum class LogSource { Core, Client };
+
     static Logger& getInstance() {
         static Logger instance;
         return instance;
     }
 
-    B8 initialize();
-    void shutdown();
+    static bool initialize();
+    static void shutdown();
 
-    template <typename... Args>
-    void log(LogLevel level, std::format_string<Args...> format, Args&&... args) {
-        logOutput(level, std::vformat(format.get(), std::make_format_args(args...)));
-    }
+    static LoggerRef& get_core_logger();
+    static LoggerRef& get_client_logger();
+
+    static void log(LogSource source, LogLevel level, std::string_view message);
 
    private:
     /* deleted ctor, dtor, copy ctor */
@@ -37,56 +42,109 @@ class Logger {
     Logger(const Logger&) = delete;
     Logger& operator=(const Logger&) = delete;
 
-    void logOutput(LogLevel level, const std::string& message);
-
-    static constexpr std::array<std::string_view, 6> s_levelColors = {
-        Colors::FATAL, Colors::ERROR, Colors::WARN, Colors::INFO, Colors::DEBUG, Colors::TRACE};
-
-    static constexpr std::array<std::string_view, 6> s_levelNames = {
-        "[FATAL]:", "[ERROR]:", "[WARNING]:", "[INFO]:", "[DEBUG]:", "[TRACE]:"};
+    static LoggerRef s_CoreLogger;
+    static LoggerRef s_ClientLogger;
 };
 
-// Logging macros
 #ifdef BUILD_DEBUG
-#define LOG_FATAL(format, ...) \
-    ::Core::Logger::getInstance().log(::Core::LogLevel::Fatal, format, ##__VA_ARGS__)
-#define LOG_ERROR(format, ...) \
-    ::Core::Logger::getInstance().log(::Core::LogLevel::Error, format, ##__VA_ARGS__)
+#define LOG_WARN_ENABLED 1
+#define LOG_INFO_ENABLED 1
+#define LOG_DEBUG_ENABLED 1
+#define LOG_TRACE_ENABLED 1
 
-#if LOG_WARN_ENABLED == 1
-#define LOG_WARN(format, ...) \
-    ::Core::Logger::getInstance().log(::Core::LogLevel::Warn, format, ##__VA_ARGS__)
+// Core Macros
+#define CORE_LOG_FATAL(...)                                                               \
+    ::Core::Logger::log(::Core::Logger::LogSource::Core, ::Core::Logger::LogLevel::Fatal, \
+                        std::format(__VA_ARGS__))
+#define CORE_LOG_ERROR(...)                                                               \
+    ::Core::Logger::log(::Core::Logger::LogSource::Core, ::Core::Logger::LogLevel::Error, \
+                        std::format(__VA_ARGS__))
+
+#if LOG_WARN_ENABLED
+#define CORE_LOG_WARN(...)                                                               \
+    ::Core::Logger::log(::Core::Logger::LogSource::Core, ::Core::Logger::LogLevel::Warn, \
+                        std::format(__VA_ARGS__))
 #else
-#define LOG_WARN(format, ...) ((void)0)
+#define CORE_LOG_WARN(...) ((void)0)
 #endif
 
-#if LOG_INFO_ENABLED == 1
-#define LOG_INFO(format, ...) \
-    ::Core::Logger::getInstance().log(::Core::LogLevel::Info, format, ##__VA_ARGS__)
+#if LOG_INFO_ENABLED
+#define CORE_LOG_INFO(...)                                                               \
+    ::Core::Logger::log(::Core::Logger::LogSource::Core, ::Core::Logger::LogLevel::Info, \
+                        std::format(__VA_ARGS__))
 #else
-#define LOG_INFO(format, ...) ((void)0)
+#define CORE_LOG_INFO(...) ((void)0)
 #endif
 
-#if LOG_DEBUG_ENABLED == 1
-#define LOG_DEBUG(format, ...) \
-    ::Core::Logger::getInstance().log(::Core::LogLevel::Debug, format, ##__VA_ARGS__)
+#if LOG_DEBUG_ENABLED
+#define CORE_LOG_DEBUG(...)                                                               \
+    ::Core::Logger::log(::Core::Logger::LogSource::Core, ::Core::Logger::LogLevel::Debug, \
+                        std::format(__VA_ARGS__))
 #else
-#define LOG_DEBUG(format, ...) ((void)0)
+#define CORE_LOG_DEBUG(...) ((void)0)
 #endif
 
-#if LOG_TRACE_ENABLED == 1
-#define LOG_TRACE(format, ...) \
-    ::Core::Logger::getInstance().log(::Core::LogLevel::Trace, format, ##__VA_ARGS__)
+#if LOG_TRACE_ENABLED
+#define CORE_LOG_TRACE(...)                                                               \
+    ::Core::Logger::log(::Core::Logger::LogSource::Core, ::Core::Logger::LogLevel::Trace, \
+                        std::format(__VA_ARGS__))
 #else
-#define LOG_TRACE(format, ...) ((void)0)
+#define CORE_LOG_TRACE(...) ((void)0)
 #endif
 
-#elif BUILD_RELEASE
-#define LOG_FATAL(format, ...) ((void)0)
-#define LOG_ERROR(format, ...) ((void)0)
-#define LOG_WARN(format, ...) ((void)0)
-#define LOG_INFO(format, ...) ((void)0)
-#define LOG_DEBUG(format, ...) ((void)0)
-#define LOG_TRACE(format, ...) ((void)0)
+// Client Macros
+#define APP_LOG_FATAL(...)                                                                  \
+    ::Core::Logger::log(::Core::Logger::LogSource::Client, ::Core::Logger::LogLevel::Fatal, \
+                        std::format(__VA_ARGS__))
+#define APP_LOG_ERROR(...)                                                                  \
+    ::Core::Logger::log(::Core::Logger::LogSource::Client, ::Core::Logger::LogLevel::Error, \
+                        std::format(__VA_ARGS__))
+
+#if LOG_WARN_ENABLED
+#define APP_LOG_WARN(...)                                                                  \
+    ::Core::Logger::log(::Core::Logger::LogSource::Client, ::Core::Logger::LogLevel::Warn, \
+                        std::format(__VA_ARGS__))
+#else
+#define APP_LOG_WARN(...) ((void)0)
+#endif
+
+#if LOG_INFO_ENABLED
+#define APP_LOG_INFO(...)                                                                  \
+    ::Core::Logger::log(::Core::Logger::LogSource::Client, ::Core::Logger::LogLevel::Info, \
+                        std::format(__VA_ARGS__))
+#else
+#define APP_LOG_INFO(...) ((void)0)
+#endif
+
+#if LOG_DEBUG_ENABLED
+#define APP_LOG_DEBUG(...)                                                                  \
+    ::Core::Logger::log(::Core::Logger::LogSource::Client, ::Core::Logger::LogLevel::Debug, \
+                        std::format(__VA_ARGS__))
+#else
+#define APP_LOG_DEBUG(...) ((void)0)
+#endif
+
+#if LOG_TRACE_ENABLED
+#define APP_LOG_TRACE(...)                                                                  \
+    ::Core::Logger::log(::Core::Logger::LogSource::Client, ::Core::Logger::LogLevel::Trace, \
+                        std::format(__VA_ARGS__))
+#else
+#define APP_LOG_TRACE(...) ((void)0)
+#endif
+
+#else
+#define CORE_LOG_FATAL(...) ((void)0)
+#define CORE_LOG_ERROR(...) ((void)0)
+#define CORE_LOG_WARN(...) ((void)0)
+#define CORE_LOG_INFO(...) ((void)0)
+#define CORE_LOG_DEBUG(...) ((void)0)
+#define CORE_LOG_TRACE(...) ((void)0)
+
+#define APP_LOG_FATAL(...) ((void)0)
+#define APP_LOG_ERROR(...) ((void)0)
+#define APP_LOG_WARN(...) ((void)0)
+#define APP_LOG_INFO(...) ((void)0)
+#define APP_LOG_DEBUG(...) ((void)0)
+#define APP_LOG_TRACE(...) ((void)0)
 #endif
 }  // namespace Core

@@ -3,7 +3,6 @@
 #include <GLFW/glfw3.h>
 
 #include "core/assert.hpp"
-#include "core/logger.hpp"
 #include "platform/window/window.hpp"
 #include "platform/window/glfw_window.hpp"
 

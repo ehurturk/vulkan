@@ -21,13 +21,13 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "../extern/stb_image.h"
 
-#define VULKAN_CHECK(x)                                                   \
-    do {                                                                  \
-        VkResult _r = (x);                                                \
-        if (_r != VK_SUCCESS) {                                           \
-            LOG_FATAL("Vulkan error: VkResult={}", static_cast<int>(_r)); \
-            ASSERT(false);                                                \
-        }                                                                 \
+#define VULKAN_CHECK(x)                                                        \
+    do {                                                                       \
+        VkResult _r = (x);                                                     \
+        if (_r != VK_SUCCESS) {                                                \
+            CORE_LOG_FATAL("Vulkan error: VkResult={}", static_cast<int>(_r)); \
+            ASSERT(false);                                                     \
+        }                                                                      \
     } while (0)
 
 namespace Renderer::Vulkan {
@@ -39,11 +39,11 @@ DebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT severity,
               void*) {
     const char* msg = data->pMessage;
     if (severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) {
-        LOG_ERROR("[Vulkan] {}", msg);
+        CORE_LOG_ERROR("[Vulkan] {}", msg);
     } else if (severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) {
-        LOG_WARN("[Vulkan] {}", msg);
+        CORE_LOG_WARN("[Vulkan] {}", msg);
     } else {
-        LOG_INFO("[Vulkan] {}", msg);
+        CORE_LOG_INFO("[Vulkan] {}", msg);
     }
     (void)msg;
     return VK_FALSE;
@@ -95,7 +95,7 @@ static VkPresentModeKHR choose_swap_present_mode(
             return availablePresentMode;
     }
 
-    LOG_WARN(
+    CORE_LOG_WARN(
         "No available present modes support VK_PRESENT_MODE_MAILBOX_KHR, falling back to "
         "{}!",
         vkb::to_string(availablePresentModes[0]));
@@ -142,7 +142,7 @@ VulkanRenderer::VulkanRenderer(Platform::Window* window)
       m_DepthImageMemory(VK_NULL_HANDLE),
       m_DepthImageView(VK_NULL_HANDLE),
       m_InFlightFences{} {
-    LOG_INFO("VULKAN IS INITIALIZED!");
+    CORE_LOG_INFO("VULKAN IS INITIALIZED!");
 }
 
 VulkanRenderer::~VulkanRenderer() {
@@ -166,7 +166,8 @@ void VulkanRenderer::initialize(const RendererConfig& cfg) {
     create_depth_resources();
     create_framebuffers();
     create_texture_sampler();
-    load_model();
+    // load_model(MODEL_PATH);
+    load_model("../../../../assets/models/DamagedHelmet/DamagedHelmet.gltf");
     create_vertex_buffer();
     create_index_buffer();
     setup_game_objects();
@@ -176,7 +177,7 @@ void VulkanRenderer::initialize(const RendererConfig& cfg) {
     create_command_buffers();
     create_sync_objects();
 
-    LOG_INFO("Vulkan instance created.");
+    CORE_LOG_INFO("Vulkan instance created.");
 }
 
 void VulkanRenderer::shutdown() {
@@ -320,7 +321,7 @@ void VulkanRenderer::draw_frame(RenderContext context) {
 
 void VulkanRenderer::create_instance() {
     if (m_vkState->validation && !check_validation_layer_support()) {
-        LOG_FATAL("[VulkanRenderer]: Validation layers requested but not available!");
+        CORE_LOG_FATAL("[VulkanRenderer]: Validation layers requested but not available!");
         throw std::runtime_error("Validation layers requested but not available!");
     }
 
@@ -391,7 +392,7 @@ void VulkanRenderer::pick_physical_device() {
     U32 deviceCount = 0;
     vkEnumeratePhysicalDevices(m_vkState->instance, &deviceCount, nullptr);
     if (deviceCount == 0) {
-        LOG_FATAL("Failed to find GPUs with Vulkan support!");
+        CORE_LOG_FATAL("Failed to find GPUs with Vulkan support!");
         ASSERT(false);
     }
 
@@ -499,7 +500,7 @@ void VulkanRenderer::create_swapchain() {
     vkGetSwapchainImagesKHR(m_Device, m_Swapchain, &imageCount, nullptr);
     m_SwapchainImages.resize(imageCount);
     vkGetSwapchainImagesKHR(m_Device, m_Swapchain, &imageCount, m_SwapchainImages.data());
-    LOG_INFO("Swapchain created with {} images", imageCount);
+    CORE_LOG_INFO("Swapchain created with {} images", imageCount);
 
     m_SwapchainImageFormat = surfaceFormat.format;
     m_SwapchainExtent = extent;
@@ -717,7 +718,7 @@ void VulkanRenderer::create_render_pass() {
     subpass.pColorAttachments = &colorAttachmentRef;
     subpass.pDepthStencilAttachment = &depthAttachmentRef;
 
-    VkSubpassDependency subpassDependency;
+    VkSubpassDependency subpassDependency{};
     subpassDependency.srcSubpass = VK_SUBPASS_EXTERNAL;
     subpassDependency.dstSubpass = 0;
     subpassDependency.srcStageMask =
@@ -863,7 +864,7 @@ void VulkanRenderer::process_materials(const aiScene* scene) {
         material->Get(AI_MATKEY_NAME, name);
         mat.name = name.C_Str();
 
-        LOG_INFO("[VulkanRenderer]: Processing material {}: {}", i, mat.name);
+        CORE_LOG_INFO("[VulkanRenderer]: Processing material {}: {}", i, mat.name);
 
         if (material->GetTextureCount(aiTextureType_DIFFUSE) > 0) {
             aiString texturePath;
@@ -876,12 +877,12 @@ void VulkanRenderer::process_materials(const aiScene* scene) {
                                  "/");
             }
 
-            LOG_INFO("[VulkanRenderer]:\tLoading diffuse texture: {}", fullPath);
+            CORE_LOG_INFO("[VulkanRenderer]:\tLoading diffuse texture: {}", fullPath);
 
             load_texture(fullPath, mat.diffuseTexture, mat.diffuseTextureMemory,
                          mat.diffuseTextureView);
         } else {
-            LOG_WARN("[VulkanRenderer]:\tNo diffuse texture found for material {}", mat.name);
+            CORE_LOG_WARN("[VulkanRenderer]:\tNo diffuse texture found for material {}", mat.name);
             create_default_texture(mat.diffuseTexture, mat.diffuseTextureMemory,
                                    mat.diffuseTextureView);
         }
@@ -934,8 +935,8 @@ void VulkanRenderer::load_texture(const std::string& path,
     stbi_uc* pixels = stbi_load(path.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
 
     if (!pixels) {
-        LOG_ERROR("[VulkanRenderer]: Failed to load texture: {}. Creating a default texture...",
-                  path);
+        CORE_LOG_WARN("[VulkanRenderer]: Failed to load texture: {}. Creating a default texture...",
+                      path);
         create_default_texture(textureImage, textureMemory, textureView);
         return;
     }
@@ -997,7 +998,7 @@ void VulkanRenderer::generate_mipmaps(VkImage image,
 
     if (!(formatProperties.optimalTilingFeatures &
           VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT)) {
-        LOG_FATAL("[VulkanRenderer]: Texture image format does not support linear blitting!");
+        CORE_LOG_FATAL("[VulkanRenderer]: Texture image format does not support linear blitting!");
         throw std::runtime_error("Texture image format does not support linear blitting!");
     }
 
@@ -1072,35 +1073,34 @@ void VulkanRenderer::generate_mipmaps(VkImage image,
     end_single_time_commands(commandBuffer);
 }
 
-void VulkanRenderer::load_model() {
+void VulkanRenderer::load_model(std::string_view path) {
     Assimp::Importer importer;
 
-    const aiScene* scene = importer.ReadFile(
-        MODEL_PATH.c_str(),
-        aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_GenNormals |
-            aiProcess_JoinIdenticalVertices |
-            aiProcess_MakeLeftHanded |  // ADD THIS - converts to left-handed (Vulkan/DirectX)
-            aiProcess_FlipWindingOrder);
+    const aiScene* scene =
+        importer.ReadFile(path.data(), aiProcess_Triangulate | aiProcess_FlipUVs |
+                                           aiProcess_GenNormals | aiProcess_JoinIdenticalVertices |
+                                           aiProcess_MakeLeftHanded | aiProcess_FlipWindingOrder);
 
     if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
-        LOG_FATAL("[VulkanRenderer::load_model()]: Assimp error: {}", importer.GetErrorString());
+        CORE_LOG_FATAL("[VulkanRenderer::load_model()]: Assimp error: {}",
+                       importer.GetErrorString());
         return;
     }
 
-    m_LoadedModel.directory = MODEL_PATH.substr(0, MODEL_PATH.find_last_of('/'));
-    LOG_INFO("[VulkanRenderer]: Loading model: {}", MODEL_PATH);
-    LOG_INFO("[VulkanRenderer]: Model has {} materials", scene->mNumMaterials);
-    LOG_INFO("[VulkanRenderer]: Model has {} meshes", scene->mNumMeshes);
-    LOG_INFO("[VulkanRenderer]: Model has {} textures", scene->mNumTextures);
+    m_LoadedModel.directory = path.substr(0, path.find_last_of('/'));
+    CORE_LOG_INFO("[VulkanRenderer]: Loading model: {}", path);
+    CORE_LOG_INFO("[VulkanRenderer]: Model has {} materials", scene->mNumMaterials);
+    CORE_LOG_INFO("[VulkanRenderer]: Model has {} meshes", scene->mNumMeshes);
+    CORE_LOG_INFO("[VulkanRenderer]: Model has {} textures", scene->mNumTextures);
 
     process_materials(scene);
 
     process_node(scene->mRootNode, scene);
 
-    LOG_INFO("[VulkanRenderer]: Model loaded successfully");
-    LOG_INFO("[VulkanRenderer]: Total Vertices: {}",
-             std::accumulate(m_LoadedModel.meshes.begin(), m_LoadedModel.meshes.end(), 0,
-                             [](int sum, const Mesh& m) { return sum + m.vertices.size(); }));
+    CORE_LOG_INFO("[VulkanRenderer]: Model loaded successfully");
+    CORE_LOG_INFO("[VulkanRenderer]: Total Vertices: {}",
+                  std::accumulate(m_LoadedModel.meshes.begin(), m_LoadedModel.meshes.end(), 0,
+                                  [](int sum, const Mesh& m) { return sum + m.vertices.size(); }));
 }
 
 void VulkanRenderer::create_vertex_buffer() {
@@ -1111,7 +1111,7 @@ void VulkanRenderer::create_vertex_buffer() {
     VkDeviceSize bufferSize = sizeof(Vertex) * total_vertices;
 
     if (bufferSize == 0) {
-        LOG_ERROR("[VulkanRenderer]: No vertices to create buffer for.");
+        CORE_LOG_ERROR("[VulkanRenderer]: No vertices to create buffer for.");
         throw std::runtime_error("No vertices to create buffer for.");
     }
 
@@ -1158,7 +1158,7 @@ void VulkanRenderer::create_index_buffer() {
     VkDeviceSize bufferSize = sizeof(U32) * total_indices;
 
     if (bufferSize == 0) {
-        LOG_ERROR("[VulkanRenderer]: No indices to create buffer for!");
+        CORE_LOG_ERROR("[VulkanRenderer]: No indices to create buffer for!");
         throw std::runtime_error("No indices to create buffer for!");
     }
 
@@ -1205,13 +1205,13 @@ void VulkanRenderer::setup_game_objects() {
         obj.materialIndex = m_LoadedModel.meshes[i].materialIndex;
         obj.position = {0.0f, 0.0f, 0.0f};
         obj.rotation = {0.0f, 0.0f, 0.0f};
-        obj.scale = {0.01f, 0.01f, 0.01f};
+        obj.scale = {1.0f, 1.0f, 1.0f};
 
         // TODO: convert this to emplace_back
         m_GameObjects.push_back(obj);
     }
 
-    LOG_INFO("[VulkanRenderer]: Created {} game objects from model", m_GameObjects.size());
+    CORE_LOG_INFO("[VulkanRenderer]: Created {} game objects from model", m_GameObjects.size());
 }
 
 void VulkanRenderer::create_uniform_buffers() {
@@ -1869,7 +1869,7 @@ VkFormat VulkanRenderer::find_supported_format(std::span<const VkFormat> candida
             return format;
         }
     }
-    LOG_FATAL("[VulkanRenderer]: Failed to find a supported format!");
+    CORE_LOG_FATAL("[VulkanRenderer]: Failed to find a supported format!");
     throw std::runtime_error("Failed to find a supported format!");
 }
 

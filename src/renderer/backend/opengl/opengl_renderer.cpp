@@ -6,7 +6,7 @@
 namespace Renderer {
 
 OpenGLRenderer::OpenGLRenderer() {
-    LOG_FATAL("OpenGL Renderer is not implemented yet!");
+    CORE_LOG_FATAL("OpenGL Renderer is not implemented yet!");
     ASSERT(false);
 }
 

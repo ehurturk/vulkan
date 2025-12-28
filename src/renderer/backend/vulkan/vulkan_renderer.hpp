@@ -206,7 +206,7 @@ class VulkanRenderer final : public RendererBackend {
     void create_texture_image();
     void create_texture_image_view();
     void create_texture_sampler();
-    void load_model();
+    void load_model(std::string_view path);
     void create_vertex_buffer();
     void create_index_buffer();
     void setup_game_objects();

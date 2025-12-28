@@ -31,7 +31,7 @@ class MyApp : public Core::Application {
     MyApp() = default;
 
     bool initialize(Platform::Window* window) override {
-        LOG_INFO("[MyApp]: Initializing my app!");
+        APP_LOG_INFO("[MyApp]: Initializing my app!");
         m_Window = window;
 
         m_Input = Platform::CreateInput(*m_Window);
@@ -80,9 +80,11 @@ class MyApp : public Core::Application {
     std::unique_ptr<Platform::Input> m_Input;
 };
 
+// TODO: change this entrypoint into a better "Cherno" style way.
+// Main class defines the app, and the engine has an extern function that it calls.
+#include <iostream>
 ENTRYPOINT(platform) {
     MyApp app;
-
     platform.initialize();
     platform.run(&app);
     platform.terminate();

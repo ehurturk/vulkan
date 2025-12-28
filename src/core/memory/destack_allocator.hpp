@@ -32,12 +32,12 @@ class DestackAllocator {
     // allocates memory with size @size bytes on the heap @heapnr
     // with tag @tag, with (optional) alignment of @alignment.
     void* alloc(U32 size, HeapDirection heapnr, U32 alignment = 16) {
-        LOG_INFO("[StackAllocator]:Allocating {} bytes.", size);
+        CORE_LOG_INFO("[StackAllocator]:Allocating {} bytes.", size);
         const U32 topAligned = MemoryUtil::AlignTo<U32>(m_Top, alignment);
         const U32 bottomAligned = MemoryUtil::AlignTo<U32>(m_Bottom, alignment);
 
         if (bottomAligned - topAligned < size) {
-            LOG_FATAL("[DestackAllocator]: Out of pool memory!");
+            CORE_LOG_FATAL("[DestackAllocator]: Out of pool memory!");
             throw std::bad_alloc();
         }
 
@@ -54,8 +54,8 @@ class DestackAllocator {
                 m_Top = topAligned + size;
                 break;
             default:
-                LOG_ERROR("[DestackAllocator]: Invalid Heap Direction: {}",
-                          static_cast<int>(heapnr));
+                CORE_LOG_ERROR("[DestackAllocator]: Invalid Heap Direction: {}",
+                               static_cast<int>(heapnr));
                 return nullptr;
         }
         return static_cast<void*>(result);
@@ -77,7 +77,8 @@ class DestackAllocator {
                 m.mark = m_Top;
                 break;
             default:
-                LOG_ERROR("[DestackAllocator]: Invalid Heap Direction: {}", static_cast<int>(dir));
+                CORE_LOG_ERROR("[DestackAllocator]: Invalid Heap Direction: {}",
+                               static_cast<int>(dir));
                 return {};
         }
 

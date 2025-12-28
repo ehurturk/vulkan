@@ -9,7 +9,7 @@
 namespace Platform {
 
 GLFWWindow::GLFWWindow(const Window::Properties& properties) : Window(properties) {
-    LOG_INFO("Creating GLFW Window...");
+    CORE_LOG_INFO("Creating GLFW Window...");
     glfwInit();
 
     // Initialize GLFW window
@@ -21,7 +21,7 @@ GLFWWindow::GLFWWindow(const Window::Properties& properties) : Window(properties
                                 m_Properties.title.c_str(), nullptr, nullptr);
 
     if (!m_Window) {
-        LOG_FATAL("Failed to create a GLFW window!");
+        CORE_LOG_FATAL("Failed to create a GLFW window!");
         // throw std::runtime_error("GLFWWindowCreateError");
     }
 
@@ -56,7 +56,6 @@ void GLFWWindow::close() {
 }
 
 bool GLFWWindow::shouldClose() {
-    // TODO: Implement
     return glfwWindowShouldClose(m_Window);
 }
 

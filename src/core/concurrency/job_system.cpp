@@ -7,7 +7,7 @@ namespace Core {
 
 JobPool::JobPool() {
     unsigned cores = std::thread::hardware_concurrency();
-    LOG_INFO("[JobPool]: Initializing with {} threads", cores);
+    CORE_LOG_INFO("[JobPool]: Initializing with {} threads", cores);
 
     for (uint i = 0; i < cores; i++) {
         m_Threads.emplace_back([this]() { workerThreadLoop(); });

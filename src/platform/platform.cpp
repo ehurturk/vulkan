@@ -3,12 +3,14 @@
 #include "core/application.hpp"
 #include "core/assert.hpp"
 #include "core/logger.hpp"
-
+#include <iostream>
 namespace Platform {
 
 Platform::Platform(const PlatformContext& context)
     : m_Context{context}, m_App{nullptr}, m_Timer{}, m_WindowProperties{} {
     // TODO: parse this info from context arguments
+    Core::Logger::initialize();
+
     m_WindowProperties.title = m_Context.arguments()[1];
     m_WindowProperties.extent = {1280, 720};
     m_WindowProperties.resizable = true;
@@ -16,40 +18,40 @@ Platform::Platform(const PlatformContext& context)
 }
 
 bool Platform::initialize() {
-    LOG_INFO("[Platform]:Initializing platform for {}", m_WindowProperties.title);
+    // CORE_LOG_INFO("[Platform]:Initializing platform for {}", m_WindowProperties.title);
 
     // Delagate the job to the correct platform to initialize the window
     createWindow(m_WindowProperties);
 
     if (!m_Window) {
-        LOG_FATAL("[Platform]:Failed to create window");
+        CORE_LOG_FATAL("[Platform]:Failed to create window");
         return false;
     }
 
-    LOG_INFO("[Platform]:Platform initialized successfully");
+    CORE_LOG_INFO("[Platform]:Platform initialized successfully");
     return true;
 }
 
 bool Platform::run(Core::Application* app) {
     if (!app) {
-        LOG_ERROR("[Platform]:No application provided to run");
+        CORE_LOG_ERROR("[Platform]:No application provided to run");
         return false;
     }
 
     m_App = app;
 
     if (!m_App->initialize(m_Window.get())) {
-        LOG_ERROR("[Platform]:Failed to initialize application: {}", m_App->getName());
+        CORE_LOG_ERROR("[Platform]:Failed to initialize application: {}", m_App->getName());
         return false;
     }
 
-    LOG_INFO("[Platform]:Starting application: {}", m_App->getName());
+    CORE_LOG_INFO("[Platform]:Starting application: {}", m_App->getName());
     m_Running = true;
 
     bool result = mainLoop();
 
     m_App->cleanup();
-    LOG_INFO("[Platform]:Application finished with exit code: {}", static_cast<int>(result));
+    CORE_LOG_INFO("[Platform]:Application finished with exit code: {}", static_cast<int>(result));
 
     return result;
 }
@@ -86,7 +88,7 @@ void Platform::updateFrame() {
 }
 
 void Platform::terminate() {
-    LOG_INFO("[Platform]:Terminating platform");
+    CORE_LOG_INFO("[Platform]:Terminating platform");
 
     if (m_App) {
         m_App->cleanup();
@@ -94,6 +96,8 @@ void Platform::terminate() {
 
     m_Window.reset();
     m_Running = false;
+
+    Core::Logger::shutdown();
 }
 
 Window& Platform::getWindow() {

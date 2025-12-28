@@ -11,8 +11,8 @@ class CounterPool {
 
     ~CounterPool() {
         if (m_ActiveCounters > 0) {
-            LOG_WARN("[CounterPool]:CounterPool destroyed with {} active counters!",
-                     m_ActiveCounters.load());
+            CORE_LOG_ERROR("[CounterPool]:CounterPool destroyed with {} active counters!",
+                           m_ActiveCounters.load());
         }
     }
 
@@ -56,18 +56,18 @@ class CounterPool {
         }
 
         if (!wrapper || !wrapper->inUse) {
-            LOG_ERROR("[CounterPool]:Double-free or invalid counter!");
+            CORE_LOG_ERROR("[CounterPool]:Double-free or invalid counter!");
             return;
         }
 
         if (wrapper->counter.load() != 0) {
-            LOG_WARN("[CounterPool]:Freeing counter with value {}", wrapper->counter.load());
+            CORE_LOG_ERROR("[CounterPool]:Freeing counter with value {}", wrapper->counter.load());
         }
 
 #ifdef BUILD_DEBUG
         auto duration = std::chrono::steady_clock::now() - wrapper->allocTime;
-        LOG_DEBUG("[CounterPool]:Counter '{}' lived for {} ms", wrapper->debugName,
-                  std::chrono::duration_cast<std::chrono::milliseconds>(duration).count());
+        CORE_LOG_ERROR("[CounterPool]:Counter '{}' lived for {} ms", wrapper->debugName,
+                       std::chrono::duration_cast<std::chrono::milliseconds>(duration).count());
 #endif
 
         wrapper->inUse = false;

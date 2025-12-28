@@ -19,20 +19,20 @@ class FixedPoolResource final : public std::pmr::memory_resource {
    protected:
     void* do_allocate(const std::size_t bytes, const std::size_t align) override {
         if (bytes <= m_Pool->block_size() && align <= m_Pool->block_align()) {
-            LOG_INFO("[FixedPoolResource]: Allocating from pool.");
+            CORE_LOG_INFO("[FixedPoolResource]: Allocating from pool.");
             return m_Pool->allocate_block();
         }
-        LOG_INFO("[FixedPoolResource]: Allocating from upstream.");
+        CORE_LOG_INFO("[FixedPoolResource]: Allocating from upstream.");
         return m_Upstream->allocate(bytes, align);
     }
 
     void do_deallocate(void* p, const std::size_t bytes, const std::size_t align) override {
         if (p && m_Pool->owns(p) && bytes <= m_Pool->block_size() &&
             align <= m_Pool->block_align()) {
-            LOG_INFO("[FixedPoolResource]: Deallocating from pool.");
+            CORE_LOG_INFO("[FixedPoolResource]: Deallocating from pool.");
             m_Pool->deallocate_block(p);
         } else {
-            LOG_INFO("[FixedPoolResource]: Deallocating from upstream.");
+            CORE_LOG_INFO("[FixedPoolResource]: Deallocating from upstream.");
             m_Upstream->deallocate(p, bytes, align);
         }
     }

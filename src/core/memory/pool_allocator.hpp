@@ -145,7 +145,7 @@ class FixedPoolAllocator {
 
     [[nodiscard]] void* allocate_block() {
         if (!m_Free) {
-            LOG_FATAL("[FixedPoolAllocator]: Out of pool memory!");
+            CORE_LOG_FATAL("[FixedPoolAllocator]: Out of pool memory!");
             throw std::bad_alloc();
         }
 
@@ -154,7 +154,7 @@ class FixedPoolAllocator {
 
     [[nodiscard]] void* try_allocate_block() noexcept {
         if (!m_Free) {
-            LOG_FATAL("[FixedPoolAllocator]: Out of pool memory!");
+            CORE_LOG_FATAL("[FixedPoolAllocator]: Out of pool memory!");
             return nullptr;
         }
 

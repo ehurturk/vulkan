@@ -95,7 +95,7 @@ TEST_F(PMRWrapperTest, ThrowsBadAllocWhenAllocatorIsFull) {
         vec.push_back(static_cast<long long>(i));
     }
 
-    LOG_INFO("Amount left: {}", allocator.getAvailableBytes());
+    CORE_LOG_INFO("Amount left: {}", allocator.getAvailableBytes());
 
     ASSERT_THROW(vec.push_back(2), std::bad_alloc);
 }

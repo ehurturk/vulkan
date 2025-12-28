@@ -68,7 +68,7 @@ class JobPool {
         try {
             (*lambdaptr)();
         } catch (...) {
-            LOG_FATAL("[JobPool]: Exception occured in job!");
+            CORE_LOG_FATAL("[JobPool]: Exception occured in job!");
         }
 
         delete lambdaptr;
