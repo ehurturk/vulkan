@@ -27,7 +27,7 @@
 // - Decouple the renderer here, maybe do not expose the renderer at all!
 
 class MyApp : public Core::Application {
-   public:
+public:
     MyApp() = default;
 
     bool initialize(Platform::Window* window) override {
@@ -40,7 +40,7 @@ class MyApp : public Core::Application {
             m_CameraController->process_mouse_move_event(event);
         });
 
-        m_Camera = std::make_unique<Scene::Camera>(glm::vec3{0.0f, 2.0f, 3.0f});
+        m_Camera = std::make_unique<Scene::Camera>(glm::vec3 { 0.0f, 2.0f, 3.0f });
         m_CameraController = std::make_unique<Scene::CameraController>(*m_Camera);
         m_CameraController->setMoveSpeed(5.0f);
         m_CameraController->setMouseSensitivity(0.1f);
@@ -60,20 +60,20 @@ class MyApp : public Core::Application {
             requestClose();
         }
 
-        m_Window->setTitle("FPS: " + std::to_string(getFPS()) +
-                           ", MS: " + std::to_string(getFrameTime()));
+        m_Window->setTitle(
+            "FPS: " + std::to_string(getFPS()) + ", MS: " + std::to_string(getFrameTime()));
 
         m_CameraController->update(*m_Input, deltaTime);
     }
 
     void render() override {
-        Renderer::RenderContext context{.camera = m_Camera.get()};
+        Renderer::RenderContext context { .camera = m_Camera.get() };
         m_Renderer->draw_frame(context);
     }
 
-    void cleanup() override {}
+    void cleanup() override { }
 
-   private:
+private:
     Platform::Window* m_Window;
     std::unique_ptr<Scene::Camera> m_Camera;
     std::unique_ptr<Scene::CameraController> m_CameraController;
@@ -82,7 +82,6 @@ class MyApp : public Core::Application {
 
 // TODO: change this entrypoint into a better "Cherno" style way.
 // Main class defines the app, and the engine has an extern function that it calls.
-#include <iostream>
 ENTRYPOINT(platform) {
     MyApp app;
     platform.initialize();

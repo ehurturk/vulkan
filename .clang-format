@@ -1,6 +1,9 @@
+BasedOnStyle: WebKit
+BreakBeforeBraces: Attach
+SortIncludes: false
+IncludeBlocks: Preserve
+AlignAfterOpenBracket: DontAlign
 IndentWidth: 4
-BasedOnStyle: Chromium
 PointerAlignment: Left
 DerivePointerAlignment: false
 ColumnLimit: 100
-SortIncludes: false
