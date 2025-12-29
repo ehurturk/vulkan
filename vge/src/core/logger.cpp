@@ -6,11 +6,10 @@
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <spdlog/sinks/basic_file_sink.h>
+#include <stdexcept>
 
-void assertion_report_failure(std::string_view expr,
-                              std::string_view msg,
-                              std::string_view file,
-                              I32 line) {
+void assertion_report_failure(
+    std::string_view expr, std::string_view msg, std::string_view file, I32 line) {
     ::Core::Logger::get_core_logger()->critical(
         "Assertion Failure: {}, message: {}, in file: {}, in line: {}", expr, msg, file, line);
 }
@@ -25,9 +24,10 @@ bool Logger::initialize() {
     auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
 
     // TODO: Make the application name retrievable from the system
-    s_CoreLogger =
-        std::make_shared<spdlog::logger>("VulkanRenderer", spdlog::sinks_init_list{console_sink});
-    s_ClientLogger = std::make_shared<spdlog::logger>("APP", spdlog::sinks_init_list{console_sink});
+    s_CoreLogger
+        = std::make_shared<spdlog::logger>("VGE", spdlog::sinks_init_list { console_sink });
+    s_ClientLogger
+        = std::make_shared<spdlog::logger>("APP", spdlog::sinks_init_list { console_sink });
 
     spdlog::register_logger(s_CoreLogger);
     spdlog::register_logger(s_ClientLogger);
@@ -41,41 +41,38 @@ bool Logger::initialize() {
     return true;
 }
 
-void Logger::shutdown() {
-    spdlog::shutdown();
-}
+void Logger::shutdown() { spdlog::shutdown(); }
 
-Logger::LoggerRef& Logger::get_core_logger() {
-    return s_CoreLogger;
-}
+Logger::LoggerRef& Logger::get_core_logger() { return s_CoreLogger; }
 
-Logger::LoggerRef& Logger::get_client_logger() {
-    return s_ClientLogger;
-}
+Logger::LoggerRef& Logger::get_client_logger() { return s_ClientLogger; }
 
 void Logger::log(LogSource source, LogLevel level, std::string_view message) {
     auto& logger = (source == LogSource::Core) ? s_CoreLogger : s_ClientLogger;
+    if (!logger) {
+        throw std::runtime_error("Logger system is not initialized!");
+    }
 
     switch (level) {
-        case LogLevel::Fatal:
-            logger->critical(message);
-            break;
-        case LogLevel::Error:
-            logger->error(message);
-            break;
-        case LogLevel::Warn:
-            logger->warn(message);
-            break;
-        case LogLevel::Info:
-            logger->info(message);
-            break;
-        case LogLevel::Debug:
-            logger->debug(message);
-            break;
-        case LogLevel::Trace:
-            logger->trace(message);
-            break;
+    case LogLevel::Fatal:
+        logger->critical(message);
+        break;
+    case LogLevel::Error:
+        logger->error(message);
+        break;
+    case LogLevel::Warn:
+        logger->warn(message);
+        break;
+    case LogLevel::Info:
+        logger->info(message);
+        break;
+    case LogLevel::Debug:
+        logger->debug(message);
+        break;
+    case LogLevel::Trace:
+        logger->trace(message);
+        break;
     }
 }
 
-}  // namespace Core
+} // namespace Core
