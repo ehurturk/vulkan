@@ -8,6 +8,8 @@
 #include <vulkan/vulkan.h>
 #include <vulkan/vulkan_core.h>
 
+#include <vk_mem_alloc.h>
+
 #include "renderer/backend/renderer.hpp"
 #include "defines.hpp"
 
@@ -193,6 +195,7 @@ private:
     void create_surface();
     void pick_physical_device();
     void create_logical_device();
+    void create_memory_allocator();
     void create_swapchain();
     void create_swapchain_image_views();
     void create_descriptor_set_layout();
@@ -280,6 +283,7 @@ private:
 
     VkDevice m_Device;
     VkPhysicalDevice m_PhysicalDevice;
+    VmaAllocator m_Allocator;
     VkQueue m_GraphicsQueue;
     VkQueue m_PresentQueue;
     VkSurfaceKHR m_Surface;
@@ -311,6 +315,7 @@ private:
     VkImageView m_TextureImageView;
 
     VkImage m_DepthImage;
+    VmaAllocation m_DepthImageAllocation;
     VkDeviceMemory m_DepthImageMemory;
     VkImageView m_DepthImageView;
 

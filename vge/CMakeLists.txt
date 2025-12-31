@@ -14,6 +14,7 @@ set(ENGINE_SOURCES
     src/renderer/backend/shader_loader.cpp
     src/renderer/backend/vulkan/vulkan_renderer.cpp
     src/renderer/backend/vulkan/vulkan_utils.cpp
+    src/renderer/backend/vulkan/vma_usage.cpp
     src/renderer/backend/opengl/opengl_renderer.cpp
 
     src/resource/material_store.cpp
@@ -50,8 +51,10 @@ target_include_directories(engine
         $<INSTALL_INTERFACE:include>
     PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/src
-        ${CMAKE_CURRENT_SOURCE_DIR}/extern
 )
+
+# Add external dependencies
+add_subdirectory(extern)
 
 target_link_libraries(engine
     PUBLIC
@@ -61,6 +64,7 @@ target_link_libraries(engine
         glfw
         assimp::assimp
         spdlog::spdlog
+        extern_headers  # Provides VMA + header-only libs (stb, json, etc.)
 )
 
 if (PLATFORM_LINUX)
