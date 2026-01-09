@@ -24,6 +24,13 @@ struct TextureDescriptor : ResourceDescriptor {
     Filter magFilter = Filter::Linear;
     Tiling tiling = Tiling::Optimal;
     SamplerAddressMode addressMode = SamplerAddressMode::Repeat;
+    bool generateMipmaps = true;
+};
+
+struct MeshDescriptor : ResourceDescriptor {
+    bool calculateNormals = false;
+    bool calculateTangents = false;
+    float scale = 1.0f;
 };
 
 } // namespace Resource

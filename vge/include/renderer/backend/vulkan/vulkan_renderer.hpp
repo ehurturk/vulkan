@@ -12,6 +12,8 @@
 
 #include "renderer/backend/renderer.hpp"
 #include "defines.hpp"
+#include "renderer/backend/vulkan/vulkan_device.hpp"
+#include "renderer/backend/vulkan/vulkan_buffer.hpp"
 
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
@@ -299,6 +301,9 @@ private:
 
     VkBuffer m_VertexBuffer;
     VkDeviceMemory m_VertexBufferMemory;
+
+    //    Buffer m_VertexBuf;
+    //    Buffer m_IndexBuf;
 
     VkBuffer m_IndexBuffer;
     VkDeviceMemory m_IndexBufferMemory;

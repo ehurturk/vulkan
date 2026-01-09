@@ -2,7 +2,8 @@
 
 namespace Platform {
 
-UnixPlatformContext::UnixPlatformContext(int argc, char** argv) : PlatformContext{} {
+UnixPlatformContext::UnixPlatformContext(int argc, char** argv)
+    : PlatformContext {} {
     m_Arguments.reserve(argc);
 
     for (int i = 0; i < argc; i++) {
@@ -11,6 +12,8 @@ UnixPlatformContext::UnixPlatformContext(int argc, char** argv) : PlatformContex
 
     const char* tmpdir = std::getenv("TMPDIR");
     m_TmpDir = tmpdir ? std::string(tmpdir) + "/" : "/tmp/";
+
     m_ExtStorageDir = "";
+    m_ResourcesDir = "";
 }
-}  // namespace Platform
+} // namespace Platform

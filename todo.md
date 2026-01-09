@@ -64,3 +64,40 @@
 - Multiple objects -> multiple Assimp aiScene*'s?
   - Or a scene graph?
 
+# Roadmap
+
+Currently in phase: Integrating VMA into vulkan renderer
+
+1) VMA:
+- [x] Depth images use VMA
+- [ ] Texture images use VMA
+- [ ] Vertex & Index buffers use VMA + unified buffer for vertex and index buffers
+- [ ] All other memory allocations should use VMA
+
+2) Vulkan Abstraction
+- [ ] Abstract VKShaderModule + Vkshaders into a ShaderGPU class
+- [ ] Abstract VkBuffer + VmaAllocation into a general BufferGPU class (do NOT create staging buffers, instead let VMA handle it via `HOST_ACCESS_ALLOW_TRANSFER_INSTEAD_BIT` + vmaCopyMemoryToAllocation)
+- [ ] Abstract VkImage + VmaAllocation + necessary components into a TextureGPU class (handle layouts, transitions, transfers as well.)
+- [ ] Abstract VkPipeline...
+- [ ] Better abstract Model & Mesh & Material classes
+
+3) Create proper resource management system
+- [ ] Finish away ResourcePool, ResourceStore and individual resources
+- [ ] Create a path-independent resource loading API (look into platform absraction paths i.e. UnixPlatform & WindowsPlatform)
+
+4) Integrate ImGui for a GUI
+- [ ] Integrate ImGui to the engine
+- [ ] Select a good ImGui style
+- [ ] Add certain parameters to the ImGui
+- [ ] Display hardware information, FPS, etc.
+- [ ] Display graphs & profiler information in ImGui.
+
+5) Migrate to Vulkan 1.3
+- [ ] Use Dynamic Rendering
+- [ ] Use Bindless Descriptors (i.e. buffer device addresses)
+
+6) Multithreading for Resource Loading (Streaming)
+- [ ] Use worker threads & job system to load model resources concurrently.
+
+7) Multithreading for Command Buffer Recording
+- [ ] Use both primary buffers and secondary buffers for multithreaded command buffer rendering

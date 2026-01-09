@@ -273,3 +273,51 @@ The fourth parameter is the layout the image is currently using, and since we pe
 
 #### 4) Preparing the Image
 After performing an image layout transition and performing the data copy, we have to transition the image's layout to `VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL` to prepare it for shader access. The previous layout was `TRANSFER_DST_OPTIMAL`.
+
+
+## GPU Architecture & Vulkan Memory Allocator (VMA)
+
+**Memory Heap**: Depending on the hardware and platform, the device will expose a fixed number of heaps, from which you can allocate certain amount of memory in total. Discrete GPUs with dedicated memory will be different to mobile or integrated solutions that share memory with the CPU. Heaps support different memory types which must be queried from the device.
+
+**Memory Type**: When creating a resource such as a buffer, Vulkan will provide information about which memory types are compatible with the resource. Depending on additional usage flags, the developer must pick the right type, and based on the type, the appropriate heap.
+
+**Memory Property Flags**: These flags encode caching behavior and whether we can map the memory to the host (CPU), or if the GPU has fast access to the memory.
+
+VMA simplifies managing memory in vulkan by providing a memory allocator system. The global allocator is `VmaAllocator`, which should be paired up with a `VkDevice`. 
+
+From there, it is easy to create and "allocate" buffers, whether be it in GPU VRAM, CPU RAM, or in the BAR.
+
+A note on general GPU architecture:
+
+GPUs have their own local memory called VRAM. Just like normal RAMs found in CPUs, the VRAM holds memory that the GPU is currently using. BAR (Base Address Register) is a PCIe (Peripheral Component Interface Express) mechanism that exposes a mapping window of the device’s memory/resources into the CPU address space.
+
+
+Here are the cases when the GPU uses PCIe:
+
+#### GPU - PCIe Communication
+
+##### 1) Reading from CPU memory
+
+If a buffer is allocated in the main RAM (DDR4/DDR5), and we configure the GPU to use it via `VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT` (and not `DEVICE_LOCAL`), when the shader runs the GPU has to reach out over the PCIe and fetch the data from the motherboard's RAM.
+- This is considered slow since the transfer speed is limited by the PCIe speed and latency.
+
+However, on devices with integrated GPUs / UMA architcetures, `HOST_VISIBLE` and `DEVICE_LOCAL` flags can point to the same physical memory (shared RAM), so PCIe isn't used here. 
+
+##### 2) DMA Transfers (Staging Copy)
+
+A staging buffer is the standard way to load textures or meshes. The process roughly looks like:
+1) CPU writes data into a staging buffer that is allocated in the system ram (so is host visible and coherent)
+2) After the buffer is mapped and filled, we transfer the buffer into GPU VRAM via `vkCmdCopyBuffer`.
+    - The GPU's copy engine (DMA) pulls that data from RAM over the PCIe bus and writes it to the VRAM.
+3) Once the copy is done, the data is in VRAM and future reads by the GPU are local (thus fast)
+
+Here are the cases when the CPU uses PCIe:
+
+#### CPU - PCIe Communication
+
+##### CPU Writes to BAR
+
+The BAR is the visible VRAM, thus when we have a device local and a CPU visible buffer (via `VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE`) the CPU has to use the PCIe bus.
+
+When the CPU has to execute `memcpy` to copy CPU-bound data into the device local buffer, the CPU pushes that data across the PCIe bus directly to the VRAM. 
+

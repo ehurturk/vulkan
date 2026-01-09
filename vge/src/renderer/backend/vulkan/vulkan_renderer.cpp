@@ -166,8 +166,9 @@ void VulkanRenderer::initialize(const RendererConfig& cfg) {
     create_depth_resources();
     create_framebuffers();
     create_texture_sampler();
-    // load_model(MODEL_PATH);
-    load_model("../../../../assets/models/DamagedHelmet/DamagedHelmet.gltf");
+    load_model(MODEL_PATH);
+    // load_model("../../../../assets/models/DamagedHelmet/DamagedHelmet.gltf");
+    // load_model("../../../../assets/models/rungholt/rungholt.obj");
     create_vertex_buffer();
     create_index_buffer();
     setup_game_objects();
