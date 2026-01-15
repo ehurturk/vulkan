@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vulkan/vulkan.h>
+#include "renderer/backend/vulkan/vulkan_context.hpp"
 #include "window.hpp"
 
 #include <vector>
@@ -10,11 +11,11 @@ struct GLFWwindow;
 
 namespace Platform {
 class GLFWWindow final : public Window {
-   public:
+public:
     explicit GLFWWindow(const Window::Properties& properties);
     ~GLFWWindow() override;
 
-    VkSurfaceKHR createSurface(VkInstance instance) override;
+    VkSurfaceKHR createSurface(Renderer::Vulkan::GraphicsContext& instance) override;
 
     void processEvents() override;
     void waitForEvents() override;
@@ -31,16 +32,15 @@ class GLFWWindow final : public Window {
 
     std::vector<const char*> getRequiredInstanceExtensions() const override;
 
-    bool getDisplayPresentInfo(VkDisplayPresentInfoKHR* info,
-                               U32 src_width,
-                               U32 src_height) const override;
+    bool getDisplayPresentInfo(
+        VkDisplayPresentInfoKHR* info, U32 src_width, U32 src_height) const override;
 
     void setTitle(const std::string& title) override;
 
     // Get native window handle for input system
     GLFWwindow* getNativeHandle() const { return m_Window; }
 
-   private:
+private:
     GLFWwindow* m_Window;
 };
-}  // namespace Platform
+} // namespace Platform

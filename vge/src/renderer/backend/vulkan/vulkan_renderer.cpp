@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <numeric>
 #include <set>
+#include <filesystem>
 #include "assimp/material.h"
 #include "assimp/postprocess.h"
 #include "assimp/scene.h"
@@ -9,6 +10,7 @@
 #include "core/assert.hpp"
 #include "renderer/backend/renderer.hpp"
 #include "renderer/backend/shader_loader.hpp"
+#include "renderer/backend/vulkan/vulkan_context.hpp"
 #include "renderer/backend/vulkan/vulkan_utils.hpp"
 #include "defines.hpp"
 #include "platform/window/window.hpp"
@@ -21,15 +23,6 @@
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "../extern/stb_image.h"
-
-#define VULKAN_CHECK(x)                                                                            \
-    do {                                                                                           \
-        VkResult _r = (x);                                                                         \
-        if (_r != VK_SUCCESS) {                                                                    \
-            CORE_LOG_FATAL("Vulkan error: VkResult={}", static_cast<int>(_r));                     \
-            ASSERT(false);                                                                         \
-        }                                                                                          \
-    } while (0)
 
 namespace Renderer::Vulkan {
 
@@ -93,7 +86,7 @@ static VkPresentModeKHR choose_swap_present_mode(
 
     CORE_LOG_WARN("No available present modes support VK_PRESENT_MODE_MAILBOX_KHR, falling back to "
                   "{}!",
-        vkb::to_string(availablePresentModes[0]));
+        Utils::to_string(availablePresentModes[0]));
 
     return availablePresentModes[0];
 }
@@ -102,23 +95,26 @@ static VkPresentModeKHR choose_swap_present_mode(
     return format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT;
 }
 
-VulkanRenderer::VulkanRenderer(Platform::Window* window)
+VulkanRenderer::VulkanRenderer(Platform::Window& window)
     : m_Window(window)
     , m_CurrentFrame(0)
     , m_vkState(std::make_unique<VkState>())
+    , m_Context { m_Window }
+    , m_VSwapchain { m_Context, m_Window }
+    // todo: context already holds window, do we need window again?
+    , m_VDevice { m_Context, m_Context.vk_surface() }
     , m_ValidationLayers { "VK_LAYER_KHRONOS_validation" }
-    ,
 #ifdef __PLATFORM_MACOS__
-    m_DeviceExtensions { "VK_KHR_portability_subset", VK_KHR_SWAPCHAIN_EXTENSION_NAME }
-    ,
+    , m_DeviceExtensions { "VK_KHR_portability_subset", VK_KHR_SWAPCHAIN_EXTENSION_NAME }
+
 #endif
-    m_SwapchainImageFormat()
-    , m_SwapchainExtent()
     , m_Device(VK_NULL_HANDLE)
     , m_PhysicalDevice(VK_NULL_HANDLE)
     , m_Allocator {}
     , m_GraphicsQueue(VK_NULL_HANDLE)
     , m_PresentQueue(VK_NULL_HANDLE)
+    , m_SwapchainImageFormat()
+    , m_SwapchainExtent()
     , m_Surface(VK_NULL_HANDLE)
     , m_Swapchain(VK_NULL_HANDLE)
     , m_RenderPass(VK_NULL_HANDLE)
@@ -150,15 +146,21 @@ VulkanRenderer::~VulkanRenderer() {
 
 void VulkanRenderer::initialize(const RendererConfig& cfg) {
     m_vkState->validation = cfg.enableValidation;
+    // ==================================
     create_instance();
     if (m_vkState->validation)
         setup_debug_messenger();
+    // ^ m_Context.create_instance(...)
+    // ==================================
     create_surface();
     pick_physical_device();
     create_logical_device();
     create_memory_allocator();
+    // construct the vulkan device (it will probably call the instance functions as well.)
+    // ==================================
     create_swapchain();
     create_swapchain_image_views();
+    // ==================================
     create_render_pass();
     create_descriptor_set_layout();
     create_graphics_pipeline();
@@ -166,9 +168,8 @@ void VulkanRenderer::initialize(const RendererConfig& cfg) {
     create_depth_resources();
     create_framebuffers();
     create_texture_sampler();
-    load_model(MODEL_PATH);
-    // load_model("../../../../assets/models/DamagedHelmet/DamagedHelmet.gltf");
-    // load_model("../../../../assets/models/rungholt/rungholt.obj");
+    load_model(
+        "/Users/emirhurturk/Dev/C++/vulkan/vge/assets/models/DamagedHelmet/DamagedHelmet.gltf");
     create_vertex_buffer();
     create_index_buffer();
     setup_game_objects();
@@ -386,7 +387,7 @@ void VulkanRenderer::setup_debug_messenger() {
         m_vkState->instance, &dbg, nullptr, &m_vkState->debugMessenger));
 }
 
-void VulkanRenderer::create_surface() { m_Surface = m_Window->createSurface(m_vkState->instance); }
+void VulkanRenderer::create_surface() { m_Surface = m_Window.createSurface(m_Context); }
 
 void VulkanRenderer::pick_physical_device() {
     U32 deviceCount = 0;
@@ -562,7 +563,9 @@ void VulkanRenderer::create_descriptor_set_layout() {
 
 void VulkanRenderer::create_graphics_pipeline() {
     // TODO: abstract away the filepath thing, especially for resources such as shaders/textures.
-    auto shader = ShaderLoader::read_file("../../../../assets/shaders/triangle.spv");
+    CORE_LOG_INFO("I am currently in: {}", std::filesystem::current_path().c_str());
+    auto shader = ShaderLoader::read_file(
+        "/Users/emirhurturk/Dev/C++/vulkan/vge/assets/shaders/triangle.spv");
 
     // Shader modules && stage creations
     VkShaderModule shaderModule = create_shader_module(shader);
@@ -1402,8 +1405,8 @@ void VulkanRenderer::cleanup_swapchain() {
 void VulkanRenderer::recreate_swapchain() {
     int width = 0, height = 0;
     while (width == 0 || height == 0) {
-        m_Window->waitForEvents();
-        auto [frame_width, frame_height] = m_Window->getFramebufferSize();
+        m_Window.waitForEvents();
+        auto [frame_width, frame_height] = m_Window.getFramebufferSize();
         width = frame_width;
         height = frame_height;
     }
@@ -1717,7 +1720,7 @@ void VulkanRenderer::copy_buffer_to_image(VkBuffer buffer, VkImage image, U32 wi
 }
 
 std::vector<const char*> VulkanRenderer::getRequiredExtensions() const {
-    auto extensions = m_Window->getRequiredInstanceExtensions();
+    auto extensions = m_Window.getRequiredInstanceExtensions();
 
 #ifdef __PLATFORM_MACOS__
     extensions.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
@@ -1826,7 +1829,7 @@ VkExtent2D VulkanRenderer::choose_swap_extent(const VkSurfaceCapabilitiesKHR& ca
         return capabilities.currentExtent;
     }
 
-    const Platform::Window::Extent extent = m_Window->getExtentPixel();
+    const Platform::Window::Extent extent = m_Window.getExtentPixel();
 
     VkExtent2D ext = { extent.width, extent.height };
     ext.width = std::clamp(

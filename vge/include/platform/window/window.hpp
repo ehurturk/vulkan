@@ -1,16 +1,18 @@
 #pragma once
 
+#include "renderer/backend/vulkan/vulkan_context.hpp"
 #include "defines.hpp"
 
 #include <optional>
 #include <vulkan/vulkan.h>
 #include <string>
 #include <vector>
+#include <vulkan/vulkan_core.h>
 
 namespace Platform {
 
 class Window {
-   public:
+public:
     struct Extent {
         U32 width;
         U32 height;
@@ -37,15 +39,18 @@ class Window {
         Mode mode = Mode::DEFAULT;
         bool resizable = true;
         Vsync vsync = Vsync::DEFAULT;
-        Extent extent = {1280, 720};
+        Extent extent = { 1280, 720 };
     };
 
     explicit Window(const Properties& properties);
     virtual ~Window() = default;
 
     /* Vulkan Surface */
-    virtual VkSurfaceKHR createSurface(
-        VkInstance instance) = 0;  // TODO: Abstract the surface into a API-Agnostic surface type?
+    virtual VkSurfaceKHR createSurface(Renderer::Vulkan::GraphicsContext& context) = 0;
+    inline virtual void destroySurface(Renderer::Vulkan::GraphicsContext& context) {
+        vkDestroySurfaceKHR(context.vk_instance(), context.vk_surface(), nullptr);
+    }
+
     virtual std::vector<const char*> getRequiredInstanceExtensions() const = 0;
 
     virtual void processEvents() = 0;
@@ -63,9 +68,8 @@ class Window {
     Extent resize(const Extent& extent);
 
     // TODO: Graphics API abstraction for VkDisplayPresentInfoKHR
-    virtual bool getDisplayPresentInfo(VkDisplayPresentInfoKHR* info,
-                                       U32 src_width,
-                                       U32 src_height) const;
+    virtual bool getDisplayPresentInfo(
+        VkDisplayPresentInfoKHR* info, U32 src_width, U32 src_height) const;
 
     const Extent& getExtent() const;
     virtual const Extent getExtentPixel() const = 0;
@@ -76,7 +80,7 @@ class Window {
 
     const Properties& getProperties() const { return m_Properties; }
 
-   protected:
+protected:
     Properties m_Properties;
 };
-}  // namespace Platform
+} // namespace Platform

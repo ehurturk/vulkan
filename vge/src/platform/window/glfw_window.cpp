@@ -2,13 +2,15 @@
 #include <vulkan/vulkan_core.h>
 
 #include "core/logger.hpp"
+#include "renderer/backend/vulkan/vulkan_context.hpp"
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
 namespace Platform {
 
-GLFWWindow::GLFWWindow(const Window::Properties& properties) : Window(properties) {
+GLFWWindow::GLFWWindow(const Window::Properties& properties)
+    : Window(properties) {
     CORE_LOG_INFO("Creating GLFW Window...");
     glfwInit();
 
@@ -18,7 +20,7 @@ GLFWWindow::GLFWWindow(const Window::Properties& properties) : Window(properties
 
     // GLFWmonitor* primary = glfwGetPrimaryMonitor();
     m_Window = glfwCreateWindow(m_Properties.extent.width, m_Properties.extent.height,
-                                m_Properties.title.c_str(), nullptr, nullptr);
+        m_Properties.title.c_str(), nullptr, nullptr);
 
     if (!m_Window) {
         CORE_LOG_FATAL("Failed to create a GLFW window!");
@@ -35,19 +37,15 @@ GLFWWindow::~GLFWWindow() {
 }
 
 // for vulkan simply use glfw surface
-VkSurfaceKHR GLFWWindow::createSurface(VkInstance instance) {
-    VkSurfaceKHR surface{};
-    if (glfwCreateWindowSurface(instance, m_Window, nullptr, &surface))
+VkSurfaceKHR GLFWWindow::createSurface(Renderer::Vulkan::GraphicsContext& context) {
+    VkSurfaceKHR surface {};
+    if (glfwCreateWindowSurface(context.vk_instance(), m_Window, nullptr, &surface))
         return VK_NULL_HANDLE;
     return surface;
 }
 
-void GLFWWindow::processEvents() {
-    glfwPollEvents();
-}
-void GLFWWindow::waitForEvents() {
-    glfwWaitEvents();
-}
+void GLFWWindow::processEvents() { glfwPollEvents(); }
+void GLFWWindow::waitForEvents() { glfwWaitEvents(); }
 
 void GLFWWindow::close() {
     glfwDestroyWindow(m_Window);
@@ -55,9 +53,7 @@ void GLFWWindow::close() {
     m_Window = nullptr;
 }
 
-bool GLFWWindow::shouldClose() {
-    return glfwWindowShouldClose(m_Window);
-}
+bool GLFWWindow::shouldClose() { return glfwWindowShouldClose(m_Window); }
 
 float GLFWWindow::getDPI() const {
     // TODO: Implement
@@ -72,26 +68,25 @@ float GLFWWindow::getContentScaleFactor() const {
 const GLFWWindow::Extent GLFWWindow::getExtentPixel() const {
     int width, height;
     glfwGetFramebufferSize(m_Window, &width, &height);
-    return {.width = static_cast<U32>(width), .height = static_cast<U32>(height)};
+    return { .width = static_cast<U32>(width), .height = static_cast<U32>(height) };
 }
 
 Window::Extent GLFWWindow::getFramebufferSize() const {
     int width = 0, height = 0;
     glfwGetFramebufferSize(m_Window, &width, &height);
 
-    return {.width = static_cast<U32>(width), .height = static_cast<U32>(height)};
+    return { .width = static_cast<U32>(width), .height = static_cast<U32>(height) };
 }
 
 std::vector<const char*> GLFWWindow::getRequiredInstanceExtensions() const {
     uint32_t glfwCount = 0;
     const char** glfwExts = glfwGetRequiredInstanceExtensions(&glfwCount);
 
-    return {glfwExts, glfwExts + glfwCount};
+    return { glfwExts, glfwExts + glfwCount };
 }
 
-bool GLFWWindow::getDisplayPresentInfo(VkDisplayPresentInfoKHR* info,
-                                       U32 src_width,
-                                       U32 src_height) const {
+bool GLFWWindow::getDisplayPresentInfo(
+    VkDisplayPresentInfoKHR* info, U32 src_width, U32 src_height) const {
     (void)info;
     (void)src_width;
     (void)src_height;
@@ -104,4 +99,4 @@ void GLFWWindow::setTitle(const std::string& title) {
     glfwSetWindowTitle(m_Window, title.c_str());
 }
 
-}  // namespace Platform
+} // namespace Platform

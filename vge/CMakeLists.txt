@@ -13,6 +13,8 @@ set(ENGINE_SOURCES
     src/renderer/backend/renderer.cpp
     src/renderer/backend/shader_loader.cpp
     src/renderer/backend/vulkan/vulkan_renderer.cpp
+    src/renderer/backend/vulkan/vulkan_context.cpp
+    src/renderer/backend/vulkan/vulkan_swapchain.cpp
     src/renderer/backend/vulkan/vulkan_device.cpp
     src/renderer/backend/vulkan/vulkan_utils.cpp
     src/renderer/backend/vulkan/vma_usage.cpp

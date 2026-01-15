@@ -12,6 +12,7 @@
 
 #include "renderer/backend/renderer.hpp"
 #include "defines.hpp"
+#include "renderer/backend/vulkan/vulkan_context.hpp"
 #include "renderer/backend/vulkan/vulkan_device.hpp"
 #include "renderer/backend/vulkan/vulkan_buffer.hpp"
 
@@ -161,7 +162,7 @@ struct GameObject {
 
 class VulkanRenderer final : public RendererBackend {
 public:
-    VulkanRenderer(Platform::Window* window);
+    VulkanRenderer(Platform::Window& window);
     ~VulkanRenderer() override;
 
     void initialize(const RendererConfig& cfg) override;
@@ -269,13 +270,27 @@ private:
     void generate_mipmaps(
         VkImage image, VkFormat imageFormat, U32 width, U32 height, U32 mipLevels);
 
-    Platform::Window* m_Window;
+    Platform::Window& m_Window;
 
     U32 m_CurrentFrame;
 
-    std::unique_ptr<VkState> m_vkState;
+    VulkanContext m_Context;
+    VulkanSwapchain m_VSwapchain;
+    VulkanDevice m_Device;
+
+    // === TODO: VulkanDevice members ===
     std::vector<const char*> m_ValidationLayers;
     std::vector<const char*> m_DeviceExtensions;
+
+    // VkDevice m_Device;
+    VkPhysicalDevice m_PhysicalDevice;
+    VmaAllocator m_Allocator;
+
+    VkQueue m_GraphicsQueue;
+    VkQueue m_PresentQueue;
+    // ====================================
+
+    // === TODO: VulkanSwapchain members ===
     std::vector<VkImageView> m_SwapchainImageViews;
     std::vector<VkFramebuffer> m_SwapchainFramebuffers;
 
@@ -283,18 +298,19 @@ private:
     VkFormat m_SwapchainImageFormat;
     VkExtent2D m_SwapchainExtent;
 
-    VkDevice m_Device;
-    VkPhysicalDevice m_PhysicalDevice;
-    VmaAllocator m_Allocator;
-    VkQueue m_GraphicsQueue;
-    VkQueue m_PresentQueue;
     VkSurfaceKHR m_Surface;
     VkSwapchainKHR m_Swapchain;
+    // ======================================
+
+    // === TODO: VulkanPipeline members ===
     VkRenderPass m_RenderPass;
     VkPipelineLayout m_PipelineLayout;
     VkPipeline m_GraphicsPipeline;
+    // ======================================
 
+    // === TODO: FrameData members ===
     VkDescriptorSetLayout m_DescriptorSetLayout;
+    std::array<VkDescriptorSet, MAX_FRAMES_IN_FLIGHT> m_SceneDescriptorSet;
 
     VkCommandPool m_CommandPool;
     std::array<VkCommandBuffer, MAX_FRAMES_IN_FLIGHT> m_CommandBuffers;
@@ -302,17 +318,13 @@ private:
     VkBuffer m_VertexBuffer;
     VkDeviceMemory m_VertexBufferMemory;
 
-    //    Buffer m_VertexBuf;
-    //    Buffer m_IndexBuf;
-
     VkBuffer m_IndexBuffer;
     VkDeviceMemory m_IndexBufferMemory;
-
-    std::array<VkDescriptorSet, MAX_FRAMES_IN_FLIGHT> m_SceneDescriptorSet;
 
     std::vector<GameObject> m_GameObjects;
     VkDescriptorPool m_DescriptorPool;
 
+    // === TODO: VulkanTexture members ===
     VkSampler m_TextureSampler;
 
     VkImage m_TextureImage;
@@ -323,6 +335,7 @@ private:
     VmaAllocation m_DepthImageAllocation;
     VkDeviceMemory m_DepthImageMemory;
     VkImageView m_DepthImageView;
+    // ======================================
 
     std::vector<VkSemaphore> m_ImageAvailableSemaphores;
     std::vector<VkSemaphore> m_RenderFinishedSemaphores;

@@ -25,7 +25,17 @@
 
 #include <vulkan/vulkan.h>
 
-namespace vkb {
+#define VULKAN_CHECK(x)                                                                            \
+    do {                                                                                           \
+        VkResult _r = (x);                                                                         \
+        if (_r != VK_SUCCESS) {                                                                    \
+            CORE_LOG_FATAL("Vulkan error: VkResult={}", static_cast<int>(_r));                     \
+            ASSERT(false);                                                                         \
+        }                                                                                          \
+    } while (0)
+
+namespace Renderer::Vulkan::Utils {
+
 enum class ShaderResourceType;
 
 std::vector<std::string> split(const std::string& str, const std::string& delimiter);
@@ -291,4 +301,4 @@ const std::string image_compression_fixed_rate_flags_to_string(
  * @return The vector of tokenized strings
  */
 std::vector<std::string> split(const std::string& input, char delim);
-}  // namespace vkb
+} // namespace vkb
