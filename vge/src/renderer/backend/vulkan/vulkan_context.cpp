@@ -47,12 +47,14 @@ static void _DestroyDebugUtilsMessengerEXT(VkInstance instance,
 
 VulkanContext::VulkanContext(Platform::Window& window, VulkanConfiguration config)
     : m_Window(window)
-    , m_Config(config) {
+    , m_Config(config) { }
+
+VulkanContext::~VulkanContext() { destroy(); }
+
+void VulkanContext::initialize() {
     create_instance();
     create_surface();
 }
-
-VulkanContext::~VulkanContext() { destroy(); }
 
 void VulkanContext::create_instance() {
     ASSERT_MSG(m_Config.ValidationLayersEnabled && !check_validation_layer_support(),

@@ -1,6 +1,5 @@
 #pragma once
 
-#include <memory>
 #include <vector>
 #include <optional>
 #include <span>
@@ -275,8 +274,8 @@ private:
     U32 m_CurrentFrame;
 
     VulkanContext m_Context;
-    VulkanSwapchain m_VSwapchain;
     VulkanDevice m_Device;
+    VulkanSwapchain m_Swapchain;
 
     // === TODO: VulkanDevice members ===
     std::vector<const char*> m_ValidationLayers;
@@ -291,15 +290,15 @@ private:
     // ====================================
 
     // === TODO: VulkanSwapchain members ===
-    std::vector<VkImageView> m_SwapchainImageViews;
+    // std::vector<VkImageView> m_SwapchainImageViews;
     std::vector<VkFramebuffer> m_SwapchainFramebuffers;
 
-    std::vector<VkImage> m_SwapchainImages;
-    VkFormat m_SwapchainImageFormat;
-    VkExtent2D m_SwapchainExtent;
+    // std::vector<VkImage> m_SwapchainImages;
+    // VkFormat m_SwapchainImageFormat;
+    // VkExtent2D m_SwapchainExtent;
 
-    VkSurfaceKHR m_Surface;
-    VkSwapchainKHR m_Swapchain;
+    // VkSurfaceKHR m_RawSurface;
+    // VkSwapchainKHR m_RawSwapchain;
     // ======================================
 
     // === TODO: VulkanPipeline members ===

@@ -20,12 +20,6 @@ struct QueueFamilyIndices {
     bool is_complete() const { return graphicsFamily.has_value() && presentFamily.has_value(); }
 };
 
-struct SwapchainSupportDetails {
-    VkSurfaceCapabilitiesKHR capabilities;
-    std::vector<VkSurfaceFormatKHR> formats;
-    std::vector<VkPresentModeKHR> presentModes;
-};
-
 enum class QueueType {
     GRAPHICS_QUEUE = 0x1,
     TRANSFER_QUEUE = 0x2,
@@ -37,16 +31,23 @@ class VulkanContext;
 
 class VulkanDevice {
 public:
-    VulkanDevice(VulkanContext& context, VkSurfaceKHR surface);
+    VulkanDevice(VulkanContext& context);
     ~VulkanDevice();
 
     VulkanDevice(const VulkanDevice& other) = delete;
     VulkanDevice& operator=(const VulkanDevice& other) = delete;
 
+    void initialize();
+    void destroy();
+
     Buffer create_buffer() const;
 
     inline VkDevice device() const { return m_Device; }
     inline VmaAllocator allocator() const { return m_Allocator; }
+    inline QueueFamilyIndices queue_family_indices() const { return m_QueueIndices; }
+    inline SwapchainSupportDetails swapchain_support_details() const {
+        return m_SwapchainSupportDetails;
+    }
 
 private:
     QueueFamilyIndices find_queue_families(VkPhysicalDevice pd) const;
@@ -54,15 +55,11 @@ private:
     bool check_physical_device_extension_support(VkPhysicalDevice pd) const;
     bool is_physical_device_suitable(VkPhysicalDevice pd) const;
 
-    void crceate_surface();
     void pick_physical_device();
     void create_device();
     void create_memory_allocator();
 
     VulkanContext& m_Context;
-
-    // TODO: needs to be in VulkanSwapchain?
-    VkSurfaceKHR m_Surface;
 
     VkDevice m_Device;
     VkPhysicalDevice m_PhysicalDevice;
@@ -74,6 +71,9 @@ private:
 
     VkQueue m_GraphicsQueue;
     VkQueue m_PresentQueue;
+
+    QueueFamilyIndices m_QueueIndices;
+    SwapchainSupportDetails m_SwapchainSupportDetails;
 };
 
 } // namespace Renderer::Vulkan

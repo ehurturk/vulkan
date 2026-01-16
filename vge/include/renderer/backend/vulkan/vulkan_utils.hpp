@@ -20,19 +20,19 @@
 #include <map>
 #include <sstream>
 #include <string>
-#include <unordered_map>
 #include <vector>
 
 #include <vulkan/vulkan.h>
 
-#define VULKAN_CHECK(x)                                                                            \
-    do {                                                                                           \
-        VkResult _r = (x);                                                                         \
-        if (_r != VK_SUCCESS) {                                                                    \
-            CORE_LOG_FATAL("Vulkan error: VkResult={}", static_cast<int>(_r));                     \
-            ASSERT(false);                                                                         \
-        }                                                                                          \
+/* clang-format off */
+#define VULKAN_CHECK(x)                                                                                                   \
+    do {                                                                                                                  \
+        VkResult _r = (x);                                                                                                \
+        if (_r != VK_SUCCESS) {                                                                                           \
+            throw std::runtime_error("[Vulkan Error] VkResult: " + ::Renderer::Vulkan::Utils::to_string(_r));             \
+        }                                                                                                                 \
     } while (0)
+/* clang-format on */
 
 namespace Renderer::Vulkan::Utils {
 

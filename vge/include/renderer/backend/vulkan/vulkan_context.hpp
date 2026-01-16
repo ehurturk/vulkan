@@ -23,9 +23,18 @@ public:
     VulkanContext(Platform::Window& window, VulkanConfiguration config = VulkanConfiguration {});
     ~VulkanContext();
 
+    // Initializes the vulkan context, creating the VkInstance and VkSurface handles,
+    // setting up debug messengers and enabling validation layers (if supported).
+    void initialize();
+
+    // Destroys the vulkan context, freeing up resources such as the instance and the
+    // window surface.
+    void destroy();
+
     inline void set_validations_to(bool enable) { m_Config.ValidationLayersEnabled = enable; }
     inline void enable_validations() { m_Config.ValidationLayersEnabled = true; }
     inline void disable_validations() { m_Config.ValidationLayersEnabled = false; }
+    inline bool validations_enabled() const { return m_Config.ValidationLayersEnabled; }
 
     inline VkInstance vk_instance() const { return m_Instance; }
     inline VkSurfaceKHR vk_surface() const { return m_Surface; }
@@ -49,7 +58,6 @@ private:
 
     void create_instance();
     void create_surface();
-    void destroy();
 
     void setup_debug_messenger();
 

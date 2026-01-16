@@ -2,6 +2,7 @@
 #include "renderer/backend/vulkan/vulkan_buffer.hpp"
 #include "renderer/backend/vulkan/vulkan_utils.hpp"
 #include "renderer/backend/vulkan/vulkan_context.hpp"
+#include "renderer/backend/vulkan/vulkan_swapchain.hpp"
 
 #include "core/logger.hpp"
 #include "core/assert.hpp"
@@ -12,15 +13,18 @@
 
 namespace Renderer::Vulkan {
 
-VulkanDevice::VulkanDevice(VulkanContext& context, VkSurfaceKHR surface)
-    : m_Context(context)
-    , m_Surface(surface) {
+VulkanDevice::VulkanDevice(VulkanContext& context)
+    : m_Context(context) { }
+
+VulkanDevice::~VulkanDevice() { }
+
+void VulkanDevice::initialize() {
     pick_physical_device();
     create_device();
     create_memory_allocator();
 }
 
-VulkanDevice::~VulkanDevice() {
+void VulkanDevice::destroy() {
     if (m_Device == VK_NULL_HANDLE)
         CORE_LOG_FATAL("[VulkanDevice]: VkDevice is NULL.");
 
@@ -53,7 +57,7 @@ QueueFamilyIndices VulkanDevice::find_queue_families(VkPhysicalDevice pd) const 
         }
 
         VkBool32 presentSupport = false;
-        vkGetPhysicalDeviceSurfaceSupportKHR(pd, i, m_Surface, &presentSupport);
+        vkGetPhysicalDeviceSurfaceSupportKHR(pd, i, m_Context.vk_surface(), &presentSupport);
 
         if (presentSupport) {
             queueIndices.presentFamily = i;
@@ -69,24 +73,26 @@ QueueFamilyIndices VulkanDevice::find_queue_families(VkPhysicalDevice pd) const 
 
 SwapchainSupportDetails VulkanDevice::query_swap_chain_support(VkPhysicalDevice device) const {
     SwapchainSupportDetails details {};
-    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, m_Surface, &details.capabilities);
+    vkGetPhysicalDeviceSurfaceCapabilitiesKHR(
+        device, m_Context.vk_surface(), &details.capabilities);
 
     U32 formatCount;
-    vkGetPhysicalDeviceSurfaceFormatsKHR(device, m_Surface, &formatCount, nullptr);
+    vkGetPhysicalDeviceSurfaceFormatsKHR(device, m_Context.vk_surface(), &formatCount, nullptr);
 
     if (formatCount != 0) {
         details.formats.resize(formatCount);
         vkGetPhysicalDeviceSurfaceFormatsKHR(
-            device, m_Surface, &formatCount, details.formats.data());
+            device, m_Context.vk_surface(), &formatCount, details.formats.data());
     }
 
     U32 presentModeCount;
-    vkGetPhysicalDeviceSurfacePresentModesKHR(device, m_Surface, &presentModeCount, nullptr);
+    vkGetPhysicalDeviceSurfacePresentModesKHR(
+        device, m_Context.vk_surface(), &presentModeCount, nullptr);
 
     if (presentModeCount != 0) {
         details.presentModes.resize(presentModeCount);
         vkGetPhysicalDeviceSurfacePresentModesKHR(
-            device, m_Surface, &presentModeCount, details.presentModes.data());
+            device, m_Context.vk_surface(), &presentModeCount, details.presentModes.data());
     }
 
     return details;
@@ -96,11 +102,13 @@ bool VulkanDevice::is_physical_device_suitable(VkPhysicalDevice pd) const {
     QueueFamilyIndices queueIndices = find_queue_families(pd);
     bool extensionsSupported = check_physical_device_extension_support(pd);
     bool swapChainAdequate = false;
+
     if (extensionsSupported) {
         SwapchainSupportDetails swapchainSupport = query_swap_chain_support(pd);
         swapChainAdequate
             = !swapchainSupport.formats.empty() && !swapchainSupport.presentModes.empty();
     }
+
     VkPhysicalDeviceFeatures supportedFeatures;
     vkGetPhysicalDeviceFeatures(pd, &supportedFeatures);
 
@@ -123,6 +131,9 @@ void VulkanDevice::pick_physical_device() {
     for (const auto& device : devices) {
         if (is_physical_device_suitable(device)) {
             m_PhysicalDevice = device;
+            // TODO: currently doing 2 calls to query i probably can reduce this to 1 but not now
+            // GET REKT
+            m_SwapchainSupportDetails = query_swap_chain_support(m_PhysicalDevice);
             break;
         }
     }
@@ -131,7 +142,9 @@ void VulkanDevice::pick_physical_device() {
 }
 
 void VulkanDevice::create_device() {
-    auto [graphicsFamily, presentFamily] = find_queue_families(m_PhysicalDevice);
+    m_QueueIndices = find_queue_families(m_PhysicalDevice);
+
+    auto& [graphicsFamily, presentFamily] = m_QueueIndices;
 
     std::set<U32> uniqueQueueFamilies = { graphicsFamily.value(), presentFamily.value() };
 
